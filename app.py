@@ -18,7 +18,11 @@ def add_to_the_table(deadlines_list):
         write_lesson_homework(lesson_id, deadline)
 
 
-if __name__ == "__main__":
+def i_love_taylor_swift():
     deadlines = get_deadlines()
     deadline_sender(deadlines)
     add_to_the_table(deadlines)
+
+
+if __name__ == "__main__":
+    i_love_taylor_swift()
