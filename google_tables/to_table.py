@@ -3,6 +3,8 @@ from gspread import Client, Spreadsheet, Worksheet, service_account
 from typing import List
 from typing import Iterator
 
+import re
+
 import paths
 
 table_id = '11Ve-CpOpCGknA9HWXWOYZSMvod6NiOhzcyQ9AyZiKwY'
@@ -124,6 +126,13 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
 
 def get_last_deadline() -> str:
     worksheet = get_worksheet(group_num)
-    last_column = get_column_name(worksheet.col_count)
-
-    return worksheet.get(f'{last_column}4')[0][0]
+    last_num = worksheet.col_count
+    while True:
+        try:
+            date = worksheet.get(f'{get_column_name(last_num)}4')[0][0]
+            if re.match(r"^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.(\d{4})$", date):
+                return date
+        except Exception as error:
+            last_num -= 1
+            print('from to_table.get_last_deadline skipped:', error)
+            continue
