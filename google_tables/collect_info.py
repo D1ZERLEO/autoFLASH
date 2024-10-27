@@ -9,13 +9,13 @@ payload = {
     'password': 'MT1di4'
 }
 
+leaved = ['Илья Чернов']
 
-def write_lesson_homework(lesson_id, deadline):
+
+def write_lesson_homework(lesson_id, lesson_title, deadline):
     page = get_homeworks(lesson_id)
     soup = BeautifulSoup(page.text, "html.parser")
 
-    lesson = soup.findAll('th')[6]
-    lesson_title = lesson.contents[0].replace('\n', '').strip(' ')
     print('Made all of the requests to the api.100points!')
 
     print('Collect information about students...')
@@ -23,6 +23,8 @@ def write_lesson_homework(lesson_id, deadline):
     for row in soup.findAll('tr', class_='odd'):
         items = row.findAll('td')
         name = items[2].contents[0].replace('\n', '').strip(' ')
+        if name in leaved:
+            continue
         about_guy = [name]
         for hmw in items[6:]:
             _spans = hmw.findAll('span')

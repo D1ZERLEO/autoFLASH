@@ -53,6 +53,8 @@ def get_column_name(num: int):
 def write(title: str, deadline: str, totals: List[str], q_students: int, grades: Iterator[str]) -> None:
     """Записывает в табличку в последние столбцы инфу по домашке."""
 
+    print(title, deadline, totals)
+
     worksheet = get_worksheet(group_num)
     columns = [get_column_name(worksheet.col_count + i) for i in range(1, len(totals) + 1)]
     worksheet.add_cols(len(totals))

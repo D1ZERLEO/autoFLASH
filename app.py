@@ -3,7 +3,7 @@ from points100.about_deadlines import get_deadlines
 from google_tables.to_table import get_last_deadline
 from google_tables.collect_info import write_lesson_homework
 
-from dates import filter_dates_by_today, filter_dates_in_range
+from dates import filter_dates_by_today, filter_dates_in_range, sort_by_date
 
 
 def deadline_sender(deadlines_list):
@@ -12,14 +12,14 @@ def deadline_sender(deadlines_list):
 
 
 def add_to_the_table(deadlines_list):
-    for lesson_id, deadline in filter_dates_in_range(
+    for lesson_id, lesson_title, deadline in filter_dates_in_range(
             deadlines_list, last_deadline=get_last_deadline()
     ):
-        write_lesson_homework(lesson_id, deadline)
+        write_lesson_homework(lesson_id, lesson_title, deadline)
 
 
 def i_love_taylor_swift():
-    deadlines = get_deadlines()
+    deadlines = sort_by_date(get_deadlines())
     deadline_sender(deadlines)
     add_to_the_table(deadlines)
 

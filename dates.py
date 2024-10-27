@@ -14,6 +14,10 @@ def get_moscow_date() -> datetime.date:
     return current_moscow_time.date()
 
 
+def sort_by_date(data):
+    return sorted(data, key=lambda x: datetime.strptime(x[2], "%d.%m.%Y"))
+
+
 def filter_dates_by_today(data: tp.List[tp.Tuple[str]]) -> tp.List[str]:
     today = get_moscow_date()
 
@@ -31,7 +35,7 @@ def filter_dates_by_today(data: tp.List[tp.Tuple[str]]) -> tp.List[str]:
 
 def filter_dates_in_range(
         data: tp.List[tp.Tuple[str]], last_deadline: str
-) -> tp.List[tp.Tuple[int, str]]:
+) -> tp.List[tp.Tuple[int, str, str]]:
     today = get_moscow_date()
 
     # Преобразуем строку с last_deadline в объект даты
@@ -44,6 +48,5 @@ def filter_dates_in_range(
 
         # Проверяем, что дата находится в нужном диапазоне
         if deadline_date < item_date < today:
-            result.append((lesson_id, date_str))
-
+            result.append((lesson_id, title, date_str))
     return result
