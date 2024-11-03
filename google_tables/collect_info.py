@@ -9,7 +9,7 @@ payload = {
     'password': 'MT1di4'
 }
 
-leaved = ['Илья Чернов', 'Таня Афанасьева', 'Иван Бухтияров']
+leaved = ['Илья Чернов', 'Таня Афанасьева', 'Иван Бухтияров', 'Ангелина Нуриева', 'Алиса Байрак']
 
 
 def write_lesson_homework(lesson_id, lesson_title, deadline):
