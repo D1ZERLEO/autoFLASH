@@ -4,6 +4,7 @@ from typing import List
 from typing import Iterator
 
 import re
+from time import sleep
 
 import paths
 
@@ -121,9 +122,15 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
             "borders": borders
         })
 
+    delay = 10
     for row in range(7, q_students + 7):
         for col in columns:
             worksheet.update_acell(f'{col}{row}', next(grades))
+
+        delay -= 1
+        if delay == 0:
+            sleep(30)
+            delay = 10
 
 
 def get_last_deadline() -> str:
