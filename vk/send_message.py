@@ -22,8 +22,14 @@ def send_deadline_message(lesson_title: str) -> bool:
     # Получаем адрес сервера для загрузки картинки
     upload_url = api.photos.getMessagesUploadServer(GROUP_ID=GROUP_ID, v=base_request_params['v'])['upload_url']
 
-    # Формируем данные параметров для сохранения картинки на сервере
-    request = requests.post(upload_url, files={'photo': open(paths.DEADLINE_PICTURE, "rb")})
+    while True:
+        try:
+            # Формируем данные параметров для сохранения картинки на сервере
+            request = requests.post(upload_url, files={'photo': open(paths.DEADLINE_PICTURE, "rb")})
+            break
+        except Exception as error:
+            print('At send_message:', error)
+
     params = {
         'server': request.json()['server'],
         'photo': request.json()['photo'],
