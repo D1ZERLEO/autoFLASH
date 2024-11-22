@@ -21,7 +21,7 @@ def add_to_the_table(deadlines_list):
 def i_love_taylor_swift():
     deadlines = sort_by_date(get_deadlines())
     deadline_sender(deadlines)
-    add_to_the_table(deadlines)
+    add_to_the_table(deadlines)  # если падает тут, значит, поменялся moduleid в getapihomeworks (наступил новый блок)
 
 
 if __name__ == "__main__":
