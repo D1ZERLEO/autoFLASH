@@ -16,4 +16,4 @@ def get_homeworks(lesson_id):
 
         # если падает тут, значит, поменялся moduleid (наступил новый блок)
         return s.get(
-            f'https://api.100points.ru/student_live/index?email=&full_name=&hidden_last_name=&hidden_first_name=&hidden_mid_name=&vk_id=&subject_id=20&course_id=1147&module_id=3959&lesson_id={lesson_id}')
+            f'https://api.100points.ru/student_live/index?email=&full_name=&hidden_last_name=&hidden_first_name=&hidden_mid_name=&vk_id=&subject_id=20&course_id=1147&module_id=4072&lesson_id={lesson_id}')
