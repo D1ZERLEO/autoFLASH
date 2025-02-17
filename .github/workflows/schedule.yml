@@ -3,7 +3,7 @@ name: Run scheduled Python script
 
 on:
   schedule:
-    - cron: "0 5 * * *"
+    - cron: "25 19 * * *"
 
 jobs:
   run-script:
@@ -22,3 +22,5 @@ jobs:
       - name: Run script
         run: |
           python app.py
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: google-credentials.json

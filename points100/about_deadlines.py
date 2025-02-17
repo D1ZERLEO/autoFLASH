@@ -1,24 +1,17 @@
 from typing import Any
+import os
 
 import requests
 
 payload = {
-    'email': "inf_ege_uchenik@mail.ru",
-    'password': "ugkk0W"
+    'email': os.getenv('STUDENT_ACCOUNT_EMAIL'),
+    'password': os.getenv('STUDENT_ACCOUNT_PASSWORD')
 }
 
 
 def get_deadlines() -> list[tuple[str, Any, Any]]:
     # Запускаем сессию
     with requests.Session() as s:
-        """
-        # Авторизуемся
-        login_response = s.post('https://api.100points.ru/api/login', data=payload)
-
-        # Попробуем получить токен из заголовков (если он там есть)
-        token = login_response.headers.get('Authorization')
-        """
-
         # Заголовки для запроса уроков
         headers = {
             'Content-Type': 'application/json',
@@ -29,7 +22,7 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
 
         # Делаем POST запрос для получения уроков с заголовками
         lessons_response = s.post(
-            'https://api.100points.ru/api/student/courses/1147/lessons',
+            f"https://{os.getenv('api_domain')}/api/student/courses/1147/lessons",
             headers=headers
         ).json()
 

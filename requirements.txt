@@ -3,3 +3,4 @@ vk-api
 beautifulsoup4~=4.12.3
 gspread~=6.1.3
 pytz~=2024.2
+python-dotenv~=1.0.1

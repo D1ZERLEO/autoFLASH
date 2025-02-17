@@ -5,11 +5,9 @@ from typing import Iterator
 
 import re
 from time import sleep
+import os
 
-import paths
 
-table_id = '11Ve-CpOpCGknA9HWXWOYZSMvod6NiOhzcyQ9AyZiKwY'
-group_num = '12'
 LEVEL_TITLES = ['Базовый', 'Средний', 'Хард']
 borders_type = {
     "style": "SOLID"
@@ -23,7 +21,7 @@ colours = [
 
 def client_init_json() -> Client:
     """Создание клиента для работы с Google Sheets."""
-    return service_account(filename=paths.GOOGLE_TABLES_API_FILENAME)
+    return service_account(filename=os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
 
 
 def get_table_by_id(client: Client, table_url: str) -> Spreadsheet:
@@ -31,12 +29,12 @@ def get_table_by_id(client: Client, table_url: str) -> Spreadsheet:
     return client.open_by_key(table_url)
 
 
-def get_worksheet(group_num: str) -> Worksheet:
+def get_worksheet(sheet_title: str) -> Worksheet:
     """Создает сессию и возвращает объект листа на таблице"""
     client = client_init_json()
-    table = get_table_by_id(client, table_id)
+    table = get_table_by_id(client, os.getenv('google_table_id'))
 
-    worksheet = table.worksheet(title=group_num)
+    worksheet = table.worksheet(title=sheet_title)
     return worksheet
 
 
@@ -56,7 +54,7 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
 
     print(title, deadline, totals)
 
-    worksheet = get_worksheet(group_num)
+    worksheet = get_worksheet(os.getenv('your_google_sheet_title'))
     columns = [get_column_name(worksheet.col_count + i) for i in range(1, len(totals) + 1)]
     worksheet.add_cols(len(totals))
 
@@ -134,7 +132,7 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
 
 
 def get_last_deadline() -> str:
-    worksheet = get_worksheet(group_num)
+    worksheet = get_worksheet(os.getenv('your_google_sheet_title'))
     last_num = worksheet.col_count
     while True:
         try:

@@ -1,9 +1,0 @@
-API_KEY = 'vk1.a._Fen2POHCz7gjfLcttXDgV1TF9VXY-OMRkSTIInAIPqlB9EtbJ5ez98kmIXdJBB1JcIyaYpKeG_YTTZHiAeD2G_gmDrss_lBSfDJ9V0KFVu8IYZELfw-OF0VCHF6ybfi90iLpJ53ZgXA3xvdFXNUuQvCtPQyjFNZkfAsEbtZsj-6qYWVcJ9sKU2HGHloOvQr5jsc_rWox-3Fb1aNmcRAag'
-GROUP_ID = '226951124'
-API_VERSION = '5.101'
-
-
-base_request_params = {
-    'access_token': API_KEY,
-    'v': API_VERSION
-}

@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+
 from vk.send_message import send_deadline_message
 from points100.about_deadlines import get_deadlines
 from google_tables.to_table import get_last_deadline
@@ -18,11 +20,9 @@ def add_to_the_table(deadlines_list):
         write_lesson_homework(lesson_id, lesson_title, deadline)
 
 
-def i_love_taylor_swift():
-    deadlines = sort_by_date(get_deadlines())
-    deadline_sender(deadlines)
-    add_to_the_table(deadlines)  # если падает тут, значит, поменялся moduleid в getapihomeworks (наступил новый блок)
-
-
 if __name__ == "__main__":
-    i_love_taylor_swift()
+    load_dotenv()
+
+    deadlines = sort_by_date(get_deadlines())
+    #deadline_sender(deadlines)
+    add_to_the_table(deadlines)  # если падает тут, значит, поменялся moduleid в getapihomeworks (наступил новый блок)

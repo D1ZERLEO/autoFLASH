@@ -4,22 +4,17 @@ from functools import reduce
 from google_tables.to_table import write
 from points100.get_api_homeworks import get_homeworks
 
-payload = {
-    'email': 'inf_ege_46@100points.noemail',
-    'password': 'MT1di4'
-}
-
-leaved = ['Илья Чернов', 'Таня Афанасьева', 'Иван Бухтияров', 'Ангелина Нуриева', 'Алиса Байрак', 'Астахов Илья',
-          'Настя Стольникова', 'Яся Харсиева', 'Камилла Янина']
+import os
 
 
 def write_lesson_homework(lesson_id, lesson_title, deadline):
     page = get_homeworks(lesson_id)
     soup = BeautifulSoup(page.text, "html.parser")
 
-    print('Made all of the requests to the api.100points!')
+    print(f'Made all of the requests to the {os.getenv("api_domain")}!')
 
     print('Collect information about students...')
+    leaved = eval(os.getenv("guys"))
     students = []
     for row in soup.findAll('tr', class_='odd'):
         items = row.findAll('td')
