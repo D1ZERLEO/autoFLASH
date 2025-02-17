@@ -3,11 +3,6 @@ import os
 
 import requests
 
-payload = {
-    'email': os.getenv('STUDENT_ACCOUNT_EMAIL'),
-    'password': os.getenv('STUDENT_ACCOUNT_PASSWORD')
-}
-
 
 def get_deadlines() -> list[tuple[str, Any, Any]]:
     # Запускаем сессию
