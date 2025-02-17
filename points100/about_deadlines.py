@@ -21,6 +21,7 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
         }
 
         # Делаем POST запрос для получения уроков с заголовками
+        print(os.getenv('api_domain'))
         lessons_response = s.post(
             f"https://{os.getenv('api_domain')}/api/student/courses/1147/lessons",
             headers=headers
