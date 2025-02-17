@@ -32,7 +32,7 @@ def get_table_by_id(client: Client, table_url: str) -> Spreadsheet:
 def get_worksheet(sheet_title: str) -> Worksheet:
     """Создает сессию и возвращает объект листа на таблице"""
     client = client_init_json()
-    table = get_table_by_id(client, os.getenv('google_table_id'))
+    table = get_table_by_id(client, os.getenv('GOOGLE_TABLE_ID'))
 
     worksheet = table.worksheet(title=sheet_title)
     return worksheet
@@ -54,7 +54,7 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
 
     print(title, deadline, totals)
 
-    worksheet = get_worksheet(os.getenv('your_google_sheet_title'))
+    worksheet = get_worksheet(os.getenv('YOUR_GOOGLE_SHEET_TITLE'))
     columns = [get_column_name(worksheet.col_count + i) for i in range(1, len(totals) + 1)]
     worksheet.add_cols(len(totals))
 
@@ -132,7 +132,7 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
 
 
 def get_last_deadline() -> str:
-    worksheet = get_worksheet(os.getenv('your_google_sheet_title'))
+    worksheet = get_worksheet(os.getenv('YOUR_GOOGLE_SHEET_TITLE'))
     last_num = worksheet.col_count
     while True:
         try:

@@ -24,7 +24,7 @@ def send_deadline_message(lesson_title: str) -> bool:
     while True:
         try:
             # Формируем данные параметров для сохранения картинки на сервере
-            request = requests.post(upload_url, files={'photo': open(os.getenv('vk_deadline_picture'), "rb")})
+            request = requests.post(upload_url, files={'photo': open(os.getenv('VK_DEADLINE_PICTURE'), "rb")})
             break
         except Exception as error:
             print('At send_message:', error)
@@ -33,8 +33,8 @@ def send_deadline_message(lesson_title: str) -> bool:
         'server': request.json()['server'],
         'photo': request.json()['photo'],
         'hash': request.json()['hash'],
-        'GROUP_ID': os.getenv('vk_group_id'),
-        'v': os.getenv('vk_api_version')
+        'GROUP_ID': os.getenv('VK_GROUP_ID'),
+        'v': os.getenv('VK_API_VERSION')
     }
 
     # Сохраняем картинку на сервере и получаем её идентификатор
@@ -45,8 +45,8 @@ def send_deadline_message(lesson_title: str) -> bool:
         'chat_id': '2',  # ID пользователя, которому мы должны отправить картинку
         'random_id': random.randint(1, 2147483647),
         'message': f'@all, сегодня #дедлайн по {lesson_title}',
-        'attachment': f"photo-{os.getenv('vk_group_id')}_{photo_id}",
-        'v': os.getenv('vk_api_version')
+        'attachment': f"photo-{os.getenv('VK_GROUP_ID')}_{photo_id}",
+        'v': os.getenv('VK_API_VERSION')
     }
 
     return api.messages.send(**params)
