@@ -1,4 +1,4 @@
-from gspread import Client, Spreadsheet, Worksheet, service_account
+from gspread import Client, Spreadsheet, Worksheet, service_account, service_account_from_dict
 
 from typing import List
 from typing import Iterator
@@ -21,7 +21,7 @@ colours = [
 
 def client_init_json() -> Client:
     """Создание клиента для работы с Google Sheets."""
-    return service_account(filename=os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
+    return service_account_from_dict(eval(os.getenv('GOOGLE_APPLICATION_CREDENTIALS')))
 
 
 def get_table_by_id(client: Client, table_url: str) -> Spreadsheet:

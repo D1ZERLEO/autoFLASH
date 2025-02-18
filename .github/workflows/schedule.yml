@@ -3,7 +3,7 @@ name: Run scheduled Python script
 
 on:
   schedule:
-    - cron: "20 17 * * *"
+    - cron: "20 18 * * *"
 
 jobs:
   run-script:
@@ -19,17 +19,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Save Google credentials to a file
-        run: |
-          echo "${{ secrets.GOOGLE_CREDENTIALS }}" > google-credentials.json
       - name: Run script
         run: |
           python app.py
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: google-credentials.json
           VK_API_VERSION: ${{ vars.VK_API_VERSION }}
           VK_DEADLINE_PICTURE: ${{ vars.VK_DEADLINE_PICTURE }}
           YOUR_GOOGLE_SHEET_TITLE: ${{ vars.YOUR_GOOGLE_SHEET_TITLE }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
           API_ACCOUNT_EMAIL: ${{ secrets.API_ACCOUNT_EMAIL }}
           API_ACCOUNT_PASSWORD: ${{ secrets.API_ACCOUNT_PASSWORD }}
           API_DOMAIN: ${{ secrets.API_DOMAIN }}
