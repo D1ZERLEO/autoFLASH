@@ -23,9 +23,7 @@ jobs:
         run: |
           python app.py
         env:
-          VK_API_VERSION: ${{ vars.VK_API_VERSION }}
-          VK_DEADLINE_PICTURE: ${{ vars.VK_DEADLINE_PICTURE }}
-          YOUR_GOOGLE_SHEET_TITLE: ${{ vars.YOUR_GOOGLE_SHEET_TITLE }}
+          YOUR_GOOGLE_SHEET_TITLE: ${{ secrets.YOUR_GOOGLE_SHEET_TITLE }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
           API_ACCOUNT_EMAIL: ${{ secrets.API_ACCOUNT_EMAIL }}
           API_ACCOUNT_PASSWORD: ${{ secrets.API_ACCOUNT_PASSWORD }}

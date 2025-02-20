@@ -15,6 +15,7 @@ def write_lesson_homework(lesson_id, lesson_title, deadline):
 
     print('Collect information about students...')
     leaved = eval(os.getenv("GUYS"))
+    leaved = [] if leaved is None else leaved
     students = []
     for row in soup.findAll('tr', class_='odd'):
         items = row.findAll('td')
