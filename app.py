@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 
 from vk.send_message import send_deadline_message
-from points100.about_deadlines import get_deadlines
+from school_website.about_deadlines import get_deadlines
 from google_tables.to_table import get_last_deadline
 from google_tables.collect_info import write_lesson_homework
 

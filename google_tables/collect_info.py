@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from functools import reduce
 
 from google_tables.to_table import write
-from points100.get_api_homeworks import get_homeworks
+from school_website.get_api_homeworks import get_homeworks
 
 import os
 
