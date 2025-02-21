@@ -14,8 +14,7 @@ def write_lesson_homework(lesson_id, lesson_title, deadline):
     print(f'Made all of the requests to the {os.getenv("API_DOMAIN")}!')
 
     print('Collect information about students...')
-    leaved = eval(os.getenv("GUYS"))
-    leaved = [] if leaved is None else leaved
+    leaved = [] if os.getenv("GUYS") is None else eval(os.getenv("GUYS"))
     students = []
     for row in soup.findAll('tr', class_='odd'):
         items = row.findAll('td')
