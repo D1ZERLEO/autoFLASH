@@ -3,7 +3,7 @@ name: Run scheduled Python script
 
 on:
   schedule:
-    - cron: "25 13 * * *"
+    - cron: "15 14 * * *"
 
 jobs:
   run-script:
