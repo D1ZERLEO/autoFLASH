@@ -7,7 +7,7 @@ import json
 # Настройка логирования
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-de get_deadlines() -> list[tuple[str, Any, Any]]:
+def get_deadlines() -> list[tuple[str, Any, Any]]:
     api_domain = os.getenv('API_DOMAIN')
     course_id = "1856"  # Из вашего URL
     
