@@ -18,4 +18,4 @@ def get_homeworks(lesson_id):
         })
 
         return s.get(
-            f'https://{os.getenv("API_DOMAIN")}/student_live/index?email=&full_name=&hidden_last_name=&hidden_first_name=&hidden_mid_name=&vk_id=&subject_id=20&course_id=1147&module_id={os.getenv("MODULE_ID")}&lesson_id={lesson_id}')
+            f'https://{os.getenv("API_DOMAIN")}/student_live/index?email=&full_name=&hidden_last_name=&hidden_first_name=&hidden_mid_name=&vk_id=&subject_id=20&course_id=1856&module_id={os.getenv("MODULE_ID")}&lesson_id={lesson_id}')
