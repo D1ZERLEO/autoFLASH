@@ -11,7 +11,7 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Bearer 1938977|1wyh786iIQb7ehAe2rgT08HVPkOO5cHqPMPU6WAD'
+            #'Authorization': 'Bearer 1938977|1wyh786iIQb7ehAe2rgT08HVPkOO5cHqPMPU6WAD'
             # Используем токен из заголовков, если он там есть
         }
 
