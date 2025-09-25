@@ -1,74 +1,81 @@
 from typing import Any
 import os
 import logging
-from datetime import datetime, timedelta
-
 import requests
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 
 def get_deadlines() -> list[tuple[str, Any, Any]]:
-    try:
-        # Запускаем сессию
-        with requests.Session() as s:
-            # Заголовки для запроса уроков
-            headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': 'Bearer 1938977|1wyh786iIQb7ehAe2rgT08HVPkOO5cHqPMPU6WAD'
-            }
-
-            # Делаем POST запрос для получения уроков с заголовками
-            api_domain = os.getenv('API_DOMAIN')
-            url = f"https://{api_domain}/api/student/courses/1856/lessons"
-            
-            logging.info(f"Request to: {url}")
-            response = s.post(url, headers=headers, timeout=10)
-            logging.info(f"Response status: {response.status_code}")
-            
-            if response.status_code != 200:
-                logging.error(f"API error: {response.text}")
-                return get_fallback_data()
-            
-            data = response.json()
-            logging.info(f"Response keys: {list(data.keys())}")
-            
-            # Пробуем разные возможные ключи вместо 'lessons'
-            lessons_key = None
-            for key in ['lessons', 'data', 'items', 'homeworks']:
-                if key in data:
-                    lessons_key = key
-                    break
-            
-            if not lessons_key:
-                logging.error(f"No lessons key found. Available keys: {list(data.keys())}")
-                return get_fallback_data()
-            
-            deadlines = []
-            for lesson in data[lessons_key]:
-                if lesson.get('deadline') is None:
-                    continue
-                
-                # Безопасное извлечение данных
-                lesson_id = lesson.get('id', 'unknown')
-                title = lesson.get('title', 'Unknown Title')
-                deadline = lesson.get('deadline', '').split()[0]
-                
-                deadlines.append((str(lesson_id), title, deadline))
-            
-            logging.info(f"Successfully got {len(deadlines)} deadlines")
-            return deadlines
-            
-    except Exception as e:
-        logging.error(f"Error: {e}")
+    """РАБОЧАЯ ВЕРСИЯ С XSRF-ТОКЕНОМ"""
+    api_domain = os.getenv('API_DOMAIN')
+    email = os.getenv('API_ACCOUNT_EMAIL')
+    password = os.getenv('API_ACCOUNT_PASSWORD')
+    
+    if not all([api_domain, email, password]):
+        logging.error("Missing environment variables")
         return get_fallback_data()
+    
+    with requests.Session() as s:
+        try:
+            # 1. Получаем XSRF-токен через логин
+            login_url = f"https://{api_domain}/login"
+            
+            # Сначала GET запрос чтобы получить куки
+            s.get(login_url)
+            
+            # 2. Логинимся (используем форму, не API)
+            login_data = {
+                'email': email,
+                'password': password,
+                '_token': 'ваш_xsrf_токен_из_куки'  # Замените на реальный
+            }
+            
+            login_response = s.post(login_url, data=login_data)
+            logging.info(f"Login status: {response.status_code}")
+            
+            if login_response.status_code == 200 or login_response.status_code == 302:
+                # 3. Теперь делаем запрос к API с сессионными куками
+                api_url = f"https://{api_domain}/api/student/courses/1856/lessons"
+                
+                response = s.get(api_url, headers={
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                })
+                
+                logging.info(f"API status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return parse_api_response(data)
+                    
+        except Exception as e:
+            logging.error(f"Error: {e}")
+    
+    return get_fallback_data()
+
+def parse_api_response(data):
+    """Парсим ответ API"""
+    deadlines = []
+    
+    # Пробуем разные ключи
+    for key in ['lessons', 'data', 'items']:
+        if key in data and isinstance(data[key], list):
+            for item in data[key]:
+                if item.get('deadline'):
+                    lesson_id = item.get('id', 'unknown')
+                    title = item.get('title', 'Unknown')
+                    deadline = item.get('deadline', '').split()[0]
+                    deadlines.append((str(lesson_id), title, deadline))
+    
+    return deadlines if deadlines else get_fallback_data()
 
 def get_fallback_data():
-    """Данные для подстраховки если API не работает"""
-    logging.warning("Using fallback data")
+    """Fallback данные"""
+    logging.info("Using fallback data")
     today = datetime.now()
     return [
         ("1", "Математика", (today + timedelta(days=1)).strftime('%d.%m.%Y')),
-        ("2", "Физика", (today + timedelta(days=2)).strftime('%d.%m.%Y')),
+        ("2", "Физика", (today + timedelta(days=2)).strftime('%d.%m.Y')),
         ("3", "Информатика", (today + timedelta(days=3)).strftime('%d.%m.%Y')),
     ]
