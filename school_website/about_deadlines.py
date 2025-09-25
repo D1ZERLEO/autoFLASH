@@ -1,31 +1,38 @@
 from typing import Any
 import os
-
 import requests
 
 
 def get_deadlines() -> list[tuple[str, Any, Any]]:
-    # Запускаем сессию
     with requests.Session() as s:
-        # Заголовки для запроса уроков
-        headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Bearer 1938977|1wyh786iIQb7ehAe2rgT08HVPkOO5cHqPMPU6WAD' # скорее всего проблемы тут
-            # Используем токен из заголовков, если он там есть
+        # Авторизация по почте и паролю
+        login_payload = {
+            "email": os.getenv("API_ACCOUNT_EMAIL"),   # <-- замени на os.getenv("API_ACCOUNT_EMAIL")
+            "password": os.getenv("API_ACCOUNT_PASSWORD")  # <-- замени на os.getenv("API_ACCOUNT_PASSWORD")
         }
 
-        # Делаем POST запрос для получения уроков с заголовками
-        print(os.getenv('API_DOMAIN'))
-        lessons_response = s.post(
-            f"https://{os.getenv('API_DOMAIN')}/api/student/courses/1147/lessons", # еще тут 100% неправильно, потому что во-первых 1856, а во-вторых надо путь немного другой, возможно там student_live(не student)
-            headers=headers
+        login_response = s.post(
+            f"https://{os.getenv('API_DOMAIN')}/api/auth/login",
+            json=login_payload
         ).json()
-    print(lessons_response)  # что реально вернул сервер
+
+        if login_response.get("status") != "success":
+            raise RuntimeError(f"Ошибка авторизации: {login_response}")
+
+        # Теперь пробуем запросить уроки
+        lessons_response = s.post(
+            f"https://{os.getenv('API_DOMAIN')}/api/student/courses/1856/lessons"
+        ).json()
+
+        if "lessons" not in lessons_response:
+            raise RuntimeError(f"Ошибка доступа к курсу: {lessons_response}")
+
     deadlines = []
-    for lesson in lessons_response['lessons']: # падает всё на этой строке с отсылкой на get_deadlines()
-        if lesson['deadline'] is None:
+    for lesson in lessons_response["lessons"]:
+        if lesson["deadline"] is None:
             continue
-        deadlines.append((str(lesson['id']), lesson['title'], lesson['deadline'].split()[0]))
+        deadlines.append(
+            (str(lesson["id"]), lesson["title"], lesson["deadline"].split()[0])
+        )
 
     return deadlines
