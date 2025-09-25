@@ -12,14 +12,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+      
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      
       - name: Run script
         run: |
           python app.py
@@ -35,3 +38,12 @@ jobs:
           MODULE_ID: ${{ secrets.MODULE_ID }}
           VK_API_TOKEN: ${{ secrets.VK_API_TOKEN }}
           VK_GROUP_ID: ${{ secrets.VK_GROUP_ID }}
+      
+      - name: Upload debug files
+        uses: actions/upload-artifact@v2
+        with:
+          name: debug-files
+          path: |
+            debug_*.html
+          retention-days: 1
+        if: always()
