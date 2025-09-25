@@ -21,7 +21,7 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
             f"https://{os.getenv('API_DOMAIN')}/api/student/courses/1147/lessons", # еще тут 100% неправильно, потому что во-первых 1856, а во-вторых надо путь немного другой, возможно там student_live(не student)
             headers=headers
         ).json()
-
+    print(lessons_response)  # что реально вернул сервер
     deadlines = []
     for lesson in lessons_response['lessons']: # падает всё на этой строке с отсылкой на get_deadlines()
         if lesson['deadline'] is None:
