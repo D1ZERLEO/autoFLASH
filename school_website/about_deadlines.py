@@ -35,10 +35,6 @@ def get_deadlines():
         
         if not csrf_token:
             logger.error("Не удалось найти CSRF-токен на странице логина")
-            # Сохраним HTML для отладки
-            with open('debug_login.html', 'w', encoding='utf-8') as f:
-                f.write(login_page_response.text)
-            logger.info("Сохранен HTML страницы логина в debug_login.html")
             return []
         
         csrf_token_value = csrf_token.get('value')
@@ -61,10 +57,16 @@ def get_deadlines():
         
         logger.info("Авторизация успешна")
         
-        # Шаг 3: Получаем страницу журнала
+        # Шаг 3: Получаем страницу журнала с параметрами фильтрации
+        # Добавим параметры, чтобы получить данные для конкретного курса
         journal_url = "https://admin.100points.ru/student_live/index"
-        logger.info(f"Загрузка страницы журнала: {journal_url}")
-        journal_response = session.get(journal_url)
+        params = {
+            'subject_id': '20',  # Информатика с Артёмом (из вашего HTML)
+            'course_id': '1856',  # Годовой курс по информатике
+        }
+        
+        logger.info(f"Загрузка страницы журнала с параметрами: {params}")
+        journal_response = session.get(journal_url, params=params)
         
         if journal_response.status_code != 200:
             logger.error(f"Ошибка загрузки страницы журнала: {journal_response.status_code}")
@@ -78,36 +80,79 @@ def get_deadlines():
             f.write(journal_response.text)
         logger.info("Сохранен HTML страницы журнала в debug_journal.html")
         
+        # Анализ структуры страницы
+        logger.info("Анализ структуры страницы:")
+        
+        # Проверим наличие основных элементов
+        title = soup.find('title')
+        if title:
+            logger.info(f"Заголовок страницы: {title.get_text()}")
+        
+        # Поиск таблицы разными способами
+        tables = soup.find_all('table')
+        logger.info(f"Найдено таблиц на странице: {len(tables)}")
+        
+        for i, table in enumerate(tables):
+            logger.info(f"Таблица {i+1}: классы - {table.get('class', [])}")
+        
+        # Попробуем разные селекторы для поиска уроков
+        selectors = [
+            'thead tr:first-child th[data-lesson-id]',
+            'th[data-lesson-id]',
+            '[data-lesson-id]',
+            'thead th',
+            '.table th',
+            'table th'
+        ]
+        
         deadlines = []
         
-        # Находим все строки с уроками в таблице
-        lesson_rows = soup.select('thead tr:first-child th[data-lesson-id]')
-        logger.info(f"Найдено уроков в заголовке: {len(lesson_rows)}")
+        for selector in selectors:
+            lesson_rows = soup.select(selector)
+            logger.info(f"Селектор '{selector}': найдено {len(lesson_rows)} элементов")
+            
+            if lesson_rows:
+                for i, lesson_row in enumerate(lesson_rows):
+                    lesson_id = lesson_row.get('data-lesson-id')
+                    title = lesson_row.get_text(strip=True)
+                    
+                    if lesson_id:  # Только если есть ID урока
+                        logger.info(f"Урок {i+1}: ID={lesson_id}, Название={title}")
+                        
+                        # Ищем соответствующий дедлайн
+                        deadline_elems = soup.find_all('b', id=lambda x: x and f'deadline_{lesson_id}' in x)
+                        
+                        for deadline_elem in deadline_elems:
+                            deadline_datetime = deadline_elem.get('data-datetime', '')
+                            deadline_date = deadline_datetime.split('T')[0] if deadline_datetime else ''
+                            
+                            if deadline_date:
+                                deadlines.append((lesson_id, title, deadline_date))
+                                logger.info(f"Дедлайн для урока {lesson_id}: {deadline_date}")
         
-        for i, lesson_row in enumerate(lesson_rows):
-            lesson_id = lesson_row.get('data-lesson-id')
-            title = lesson_row.get_text(strip=True)
-            logger.info(f"Урок {i+1}: ID={lesson_id}, Название={title}")
+        # Если не нашли через селекторы, попробуем найти по структуре таблицы
+        if not deadlines:
+            logger.info("Поиск по структуре таблицы...")
             
-            # Ищем соответствующий дедлайн в таблице
-            deadline_elem = soup.find('b', id=lambda x: x and x.startswith(f'deadline_{lesson_id}'))
+            # Попробуем найти строки с дедлайнами по другим признакам
+            deadline_elems = soup.find_all('b', id=lambda x: x and 'deadline' in x)
+            logger.info(f"Найдено элементов с дедлайнами: {len(deadline_elems)}")
             
-            if deadline_elem:
-                deadline_datetime = deadline_elem.get('data-datetime', '')
-                # Берем только дату (первую часть до T)
-                deadline_date = deadline_datetime.split('T')[0] if deadline_datetime else ''
-                
-                if deadline_date:
-                    deadlines.append((lesson_id, title, deadline_date))
-                    logger.info(f"Дедлайн для урока {lesson_id}: {deadline_date}")
-                else:
-                    logger.warning(f"Не удалось извлечь дату для урока {lesson_id}")
-            else:
-                logger.warning(f"Не найден элемент дедлайна для урока {lesson_id}")
+            for elem in deadline_elems:
+                deadline_datetime = elem.get('data-datetime', '')
+                if deadline_datetime:
+                    deadline_date = deadline_datetime.split('T')[0]
+                    # Попробуем найти связанный урок
+                    lesson_id = elem.get('id', '').replace('deadline_', '').split('user_id')[0]
+                    if lesson_id:
+                        deadlines.append((lesson_id, f"Урок {lesson_id}", deadline_date))
+                        logger.info(f"Найден дедлайн: урок {lesson_id}, дата {deadline_date}")
         
         logger.info(f"Итого собрано дедлайнов: {len(deadlines)}")
         return deadlines
         
     except Exception as e:
         logger.error(f"Исключение в get_deadlines: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return []
