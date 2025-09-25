@@ -55,7 +55,7 @@ def main():
         load_dotenv()
         
         # Проверка обязательных переменных
-        required_vars = ['API_ACCOUNT_EMAIL', 'API_COUNT_PASSWORD', 'YOUR_GOOGLE_SHEET_TITLE']
+        required_vars = ['API_ACCOUNT_EMAIL', 'API_ACCOUNT_PASSWORD', 'YOUR_GOOGLE_SHEET_TITLE']
         for var in required_vars:
             if not os.getenv(var):
                 logger.error(f"Не установлена переменная окружения: {var}")
