@@ -37,8 +37,8 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
         # Пробуем найти таблицу
         for row in soup.select("table tr"):
             cols = row.find_all("td")
-            if len(cols) < 3:
-                continue
+           # if len(cols) < 3:
+            #    continue
 
             lesson_id = cols[0].get_text(strip=True)
             title = cols[1].get_text(strip=True)
