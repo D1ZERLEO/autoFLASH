@@ -1,3 +1,4 @@
+from typing import Any
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -6,7 +7,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-def get_deadlines():
+def get_deadlines() -> list[tuple[str, Any, Any]]:
     # Получаем учетные данные из переменных окружения
     email = os.getenv('API_ACCOUNT_EMAIL')
     password = os.getenv('API_ACCOUNT_PASSWORD')
@@ -76,36 +77,47 @@ def get_deadlines():
         soup = BeautifulSoup(journal_response.content, 'html.parser')
         
         deadlines = []
+        seen_lessons = set()  # Для устранения дубликатов
         
-        # Находим все уроки в заголовке таблицы
-        lesson_rows = soup.select('thead tr:first-child th[data-lesson-id]')
-        logger.info(f"Найдено уроков в заголовке: {len(lesson_rows)}")
+        # Находим все уроки в заголовке таблицы (первая строка)
+        lesson_headers = soup.select('thead tr:first-child th[data-lesson-id]')
+        logger.info(f"Найдено уроков в заголовке: {len(lesson_headers)}")
         
-        for i, lesson_row in enumerate(lesson_rows):
-            lesson_id = lesson_row.get('data-lesson-id')
-            title = lesson_row.get_text(strip=True)
+        for lesson_header in lesson_headers:
+            lesson_id = lesson_header.get('data-lesson-id')
+            title = lesson_header.get_text(strip=True)
             
-            if lesson_id:
-                logger.info(f"Урок {i+1}: ID={lesson_id}, Название={title}")
+            # Пропускаем дубликаты
+            if not lesson_id or lesson_id in seen_lessons:
+                continue
                 
-                # Ищем соответствующий дедлайн
-                deadline_elems = soup.find_all('b', id=lambda x: x and f'deadline_{lesson_id}' in x)
+            seen_lessons.add(lesson_id)
+            
+            # Ищем первый дедлайн для этого урока
+            deadline_elem = soup.find('b', id=lambda x: x and f'deadline_{lesson_id}' in x)
+            
+            if deadline_elem:
+                deadline_datetime = deadline_elem.get('data-datetime', '')
+                deadline_date = deadline_datetime.split('T')[0] if deadline_datetime else ''
                 
-                for deadline_elem in deadline_elems:
-                    deadline_datetime = deadline_elem.get('data-datetime', '')
-                    deadline_date = deadline_datetime.split('T')[0] if deadline_datetime else ''
-                    
-                    if deadline_date:
-                        # Преобразуем дату из формата YYYY-MM-DD в DD.MM.YYYY
-                        try:
-                            date_obj = datetime.strptime(deadline_date, '%Y-%m-%d')
-                            formatted_date = date_obj.strftime('%d.%m.%Y')
-                            deadlines.append((lesson_id, title, formatted_date))
-                            logger.info(f"Дедлайн для урока {lesson_id}: {formatted_date}")
-                        except ValueError as e:
-                            logger.error(f"Ошибка форматирования даты {deadline_date}: {e}")
+                if deadline_date:
+                    # Преобразуем дату из формата YYYY-MM-DD в формат как в API (только дата)
+                    try:
+                        # Форматируем дату как в API (YYYY-MM-DD)
+                        date_obj = datetime.strptime(deadline_date, '%Y-%m-%d')
+                        formatted_date = date_obj.strftime('%Y-%m-%d')
+                        
+                        # Возвращаем в том же формате, что и API: (lesson_id, title, date)
+                        deadlines.append((lesson_id, title, formatted_date))
+                        logger.info(f"Добавлен дедлайн: {lesson_id} - {title} - {formatted_date}")
+                    except ValueError as e:
+                        logger.error(f"Ошибка форматирования даты {deadline_date}: {e}")
         
         logger.info(f"Итого собрано дедлайнов: {len(deadlines)}")
+        
+        # Сортируем по дате как в оригинальной функции
+        deadlines.sort(key=lambda x: x[2])
+        
         return deadlines
         
     except Exception as e:
