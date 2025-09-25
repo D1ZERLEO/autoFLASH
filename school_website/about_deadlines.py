@@ -68,7 +68,7 @@ def parse_api_response(data):
                     deadline = item.get('deadline', '').split()[0]
                     deadlines.append((str(lesson_id), title, deadline))
     
-    return deadlines if deadlines else pass
+    return deadlines if deadlines else print('сука')
 
 
 
