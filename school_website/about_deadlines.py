@@ -68,14 +68,7 @@ def parse_api_response(data):
                     deadline = item.get('deadline', '').split()[0]
                     deadlines.append((str(lesson_id), title, deadline))
     
-    return deadlines if deadlines else get_fallback_data()
+    return deadlines if deadlines else pass
 
-def get_fallback_data():
-    """Fallback данные"""
-    logging.info("Using fallback data")
-    today = datetime.now()
-    return [
-        ("1", "Математика", (today + timedelta(days=1)).strftime('%d.%m.%Y')),
-        ("2", "Физика", (today + timedelta(days=2)).strftime('%d.%m.Y')),
-        ("3", "Информатика", (today + timedelta(days=3)).strftime('%d.%m.%Y')),
-    ]
+
+
