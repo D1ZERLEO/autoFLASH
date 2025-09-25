@@ -14,7 +14,7 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
     
     if not all([api_domain, email, password]):
         logging.error("Missing environment variables")
-        return get_fallback_data()
+        return print('сука')
     
     with requests.Session() as s:
         try:
@@ -52,7 +52,7 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
         except Exception as e:
             logging.error(f"Error: {e}")
     
-    return get_fallback_data()
+    return print('сука')
 
 def parse_api_response(data):
     """Парсим ответ API"""
