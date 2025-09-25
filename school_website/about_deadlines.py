@@ -101,22 +101,17 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
                 deadline_date = deadline_datetime.split('T')[0] if deadline_datetime else ''
                 
                 if deadline_date:
-                    # Преобразуем дату из формата YYYY-MM-DD в формат как в API (только дата)
+                    # Преобразуем дату из формата YYYY-MM-DD в DD.MM.YYYY
                     try:
-                        # Форматируем дату как в API (YYYY-MM-DD)
                         date_obj = datetime.strptime(deadline_date, '%Y-%m-%d')
-                        formatted_date = date_obj.strftime('%Y-%m-%d')
+                        formatted_date = date_obj.strftime('%d.%m.%Y')  # Исправляем формат здесь
                         
-                        # Возвращаем в том же формате, что и API: (lesson_id, title, date)
                         deadlines.append((lesson_id, title, formatted_date))
                         logger.info(f"Добавлен дедлайн: {lesson_id} - {title} - {formatted_date}")
                     except ValueError as e:
                         logger.error(f"Ошибка форматирования даты {deadline_date}: {e}")
         
         logger.info(f"Итого собрано дедлайнов: {len(deadlines)}")
-        
-        # Сортируем по дате как в оригинальной функции
-        deadlines.sort(key=lambda x: x[2])
         
         return deadlines
         
