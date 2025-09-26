@@ -11,15 +11,16 @@ logger = logging.getLogger(__name__)
 def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
     email = os.getenv('API_ACCOUNT_EMAIL')
     password = os.getenv('API_ACCOUNT_PASSWORD')
-    login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
-    print("Login page status:", login_page.status_code)
-    print("Login page snippet:", login_page.text[:500])
+    
+    
     if not email or not password:
         logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL и/или API_ACCOUNT_PASSWORD")
         return []
 
     # Логин через переданную сессию
     login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
+    print("Login page status:", login_page.status_code)
+    print("Login page snippet:", login_page.text[:500])
     soup = BeautifulSoup(login_page.text, "html.parser")
     csrf_input = soup.find("input", {"name": "_token"})
     if not csrf_input:
