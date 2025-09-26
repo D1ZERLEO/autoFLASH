@@ -54,7 +54,8 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
 
     lesson_headers = top_row.find_all("th", attrs={"data-lesson-id": True})
 
-    now = datetime.now()+3
+    moscow_tz = timezone(timedelta(hours=3))
+    now = datetime.now(moscow_tz)
     print(now)
     tolerance = timedelta(minutes=30)  # допуск ±30 минут
 
