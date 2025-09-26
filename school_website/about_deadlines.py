@@ -49,11 +49,8 @@ def get_deadlines(course_id: str = "1856", subject_id: str = "20") -> List[Tuple
 
     soup = BeautifulSoup(page.text, "html.parser")
 
-    # Находим thead с заголовками уроков — берём ПЕРВУЮ строку <tr> в thead (top-level lessons)
-    thead = soup.find("thead", id="lessons_modal_control") or soup.find("thead")
-    if not thead:
-        logger.error("thead не найден на странице student_live — изменена структура.")
-        return []
+    
+    
 
     # Найдём первую строку тр в thead, содержащую th с data-lesson-id
     top_row = None
