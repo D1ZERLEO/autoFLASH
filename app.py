@@ -25,6 +25,6 @@ if __name__ == "__main__":
     load_dotenv()
 
     with requests.Session() as s:
-        deadlines = sort_by_date(get_deadlines(s))
+        deadlines = sort_by_date(get_deadlines())
         deadline_sender(deadlines)
         add_to_the_table(s, deadlines)
