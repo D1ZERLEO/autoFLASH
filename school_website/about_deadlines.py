@@ -19,7 +19,7 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
         logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL и/или API_ACCOUNT_PASSWORD")
         return []
 
-    # Логин с CSRF из meta
+    # Логин с CSRF и заголовками
     login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
     soup = BeautifulSoup(login_page.text, "html.parser")
 
@@ -30,9 +30,16 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
     csrf_token = csrf_meta.get("content")
     print("CSRF token:", csrf_token)
 
+    headers = {
+        "X-CSRF-TOKEN": csrf_token,
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": f"https://{os.getenv('API_DOMAIN')}/login",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    }
+
     login_data = {"email": email, "password": password, "_token": csrf_token}
-    login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data)
-    if "login" in login_resp.url:
+    login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data, headers=headers)
+    if "login" in login_resp.url or login_resp.status_code != 200:
         logger.error("Ошибка авторизации")
         return []
 
@@ -45,7 +52,6 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
 
     deadlines = []
 
-    # Берём первую строку с th[data-lesson-id]
     top_row = None
     for tr in soup.find_all("tr"):
         ths = tr.find_all("th", attrs={"data-lesson-id": True})
