@@ -55,6 +55,7 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
     lesson_headers = top_row.find_all("th", attrs={"data-lesson-id": True})
 
     now = datetime.now()
+    print(now)
     tolerance = timedelta(minutes=30)  # допуск ±30 минут
 
     for header in lesson_headers:
@@ -75,6 +76,7 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
             try:
                 dt = datetime.strptime(dt_raw, "%Y-%m-%dT%H:%M")
                 # Пропускаем "фейковые" дедлайны ≈ сейчас
+                print(dt)
                 if abs(dt - now) <= tolerance:
                     continue
                 dates.append(dt.date())
