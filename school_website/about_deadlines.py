@@ -1,4 +1,4 @@
-from typing import List, Tuple, Any
+from typing import List, Tuple
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -9,33 +9,34 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
+    """
+    Получаем дедлайны всех уроков через переданную сессию.
+    """
     email = os.getenv('API_ACCOUNT_EMAIL')
     password = os.getenv('API_ACCOUNT_PASSWORD')
-    
-    
+
     if not email or not password:
         logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL и/или API_ACCOUNT_PASSWORD")
         return []
 
-    # Логин через переданную сессию
+    # Логин с CSRF из meta
     login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
-    print("Login page status:", login_page.status_code)
-    print("Login page snippet:", login_page.text[:500])
     soup = BeautifulSoup(login_page.text, "html.parser")
-    csrf_input = soup.find("input", {"name": "_token"})
-    if not csrf_input:
+
+    csrf_meta = soup.find("meta", {"name": "csrf-token"})
+    if not csrf_meta:
         logger.error("Не удалось найти CSRF токен на странице логина")
         return []
-    csrf_token = csrf_input.get("value")
+    csrf_token = csrf_meta.get("content")
     print("CSRF token:", csrf_token)
-    
+
     login_data = {"email": email, "password": password, "_token": csrf_token}
     login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data)
     if "login" in login_resp.url:
         logger.error("Ошибка авторизации")
         return []
 
-    # Получаем страницу уроков
+    # Страница уроков
     resp = s.get(
         "https://admin.100points.ru/student_live/index",
         params={"subject_id": "20", "course_id": "1856"}
@@ -96,5 +97,5 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
         chosen_date = min(candidates)
         formatted_date = chosen_date.strftime("%d.%m.%Y")
         deadlines.append((lesson_id, title, formatted_date))
-   
+
     return deadlines
