@@ -121,4 +121,5 @@ def get_deadlines(course_id: str = "1856", subject_id: str = "20") -> List[Tuple
             return datetime.max.date()
 
     deadlines.sort(key=_date_key)
+    print(deadlines)
     return deadlines
