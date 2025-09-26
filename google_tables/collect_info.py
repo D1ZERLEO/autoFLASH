@@ -9,6 +9,10 @@ import os
 
 def write_lesson_homework(lesson_id, lesson_title, deadline):
     page = get_homeworks(lesson_id)
+    print(page.status_code)
+    print(page.url)
+    print(page.text[:2000])
+    
     soup = BeautifulSoup(page.text, "html.parser")
 
     print(f'Made all of the requests to the {os.getenv("API_DOMAIN")}!')
