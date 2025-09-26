@@ -92,5 +92,7 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
         chosen_date = min(candidates)
         formatted_date = chosen_date.strftime("%d.%m.%Y")
         deadlines.append((lesson_id, title, formatted_date))
-
+    login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
+    print("Login page status:", login_page.status_code)
+    print("Login page snippet:", login_page.text[:500])
     return deadlines
