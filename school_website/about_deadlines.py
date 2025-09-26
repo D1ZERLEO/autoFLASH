@@ -3,7 +3,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import Counter
 
 logger = logging.getLogger(__name__)
