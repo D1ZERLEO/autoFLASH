@@ -1,3 +1,11 @@
+from bs4 import BeautifulSoup
+from functools import reduce
+
+from google_tables.to_table import write
+from school_website.get_api_homeworks import get_homeworks
+
+import os
+
 def write_lesson_homework(s, lesson_id, lesson_title, deadline):
     # получаем домашку через уже авторизованную сессию
     page = get_homeworks(s, lesson_id)
