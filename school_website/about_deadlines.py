@@ -82,7 +82,8 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
                 except Exception:
                     logger.warning(f"Не удалось распарсить дату: {dt_raw}")
                     continue
-        
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=moscow_tz)
             # Пропускаем "фейковые" дедлайны ≈ сейчас
             if abs(dt - now) <= tolerance:
                 continue
