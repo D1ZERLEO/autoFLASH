@@ -8,6 +8,8 @@ def get_homeworks(s: requests.Session, lesson_id: str) -> requests.Response:
     """
     # Загружаем страницу логина и берём CSRF токен
     login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
+    print("Login page status:", login_page.status_code)
+    print("Login page snippet:", login_page.text[:500])
     soup = BeautifulSoup(login_page.text, "html.parser")
     csrf_input = soup.find("input", {"name": "_token"})
     if not csrf_input:
