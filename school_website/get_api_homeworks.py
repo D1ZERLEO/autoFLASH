@@ -15,7 +15,7 @@ def get_homeworks(s: requests.Session, lesson_id: str) -> requests.Response:
     if not csrf_input:
         raise RuntimeError("Не удалось найти CSRF токен на странице логина")
     csrf_token = csrf_input.get("value")
-
+    print("CSRF token:", csrf_token)
     # Авторизация
     login_data = {
         "email": os.getenv("API_ACCOUNT_EMAIL"),
