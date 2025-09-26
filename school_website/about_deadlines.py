@@ -11,18 +11,19 @@ logger = logging.getLogger(__name__)
 def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
     """
     Получаем дедлайны всех уроков через переданную сессию.
+    Логин выполняется один раз здесь.
     """
     email = os.getenv('API_ACCOUNT_EMAIL')
     password = os.getenv('API_ACCOUNT_PASSWORD')
+    domain = os.getenv('API_DOMAIN')
 
-    if not email or not password:
-        logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL и/или API_ACCOUNT_PASSWORD")
+    if not email or not password or not domain:
+        logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL / API_ACCOUNT_PASSWORD / API_DOMAIN")
         return []
 
-    # Логин с CSRF и заголовками
-    login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
+    # Шаг 1: GET /login
+    login_page = s.get(f"https://{domain}/login")
     soup = BeautifulSoup(login_page.text, "html.parser")
-
     csrf_meta = soup.find("meta", {"name": "csrf-token"})
     if not csrf_meta:
         logger.error("Не удалось найти CSRF токен на странице логина")
@@ -30,28 +31,26 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
     csrf_token = csrf_meta.get("content")
     print("CSRF token:", csrf_token)
 
+    # Шаг 2: POST /login
     headers = {
         "X-CSRF-TOKEN": csrf_token,
         "X-Requested-With": "XMLHttpRequest",
-        "Referer": f"https://{os.getenv('API_DOMAIN')}/login",
+        "Referer": f"https://{domain}/login",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     }
-
     login_data = {"email": email, "password": password, "_token": csrf_token}
-    login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data, headers=headers)
+    login_resp = s.post(f"https://{domain}/login", data=login_data, headers=headers)
     if "login" in login_resp.url or login_resp.status_code != 200:
         logger.error("Ошибка авторизации")
         return []
 
-    # Страница уроков
-    resp = s.get(
-        "https://admin.100points.ru/student_live/index",
-        params={"subject_id": "20", "course_id": "1856"}
-    )
+    # Шаг 3: GET страницы с уроками
+    resp = s.get(f"https://{domain}/student_live/index", params={"subject_id": "20", "course_id": "1856"})
     soup = BeautifulSoup(resp.text, "html.parser")
 
     deadlines = []
 
+    # Находим первую строку с th[data-lesson-id]
     top_row = None
     for tr in soup.find_all("tr"):
         ths = tr.find_all("th", attrs={"data-lesson-id": True})
@@ -97,6 +96,7 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
         if not dates:
             continue
 
+        # Берём самую популярную дату
         counter = Counter(dates)
         max_count = max(counter.values())
         candidates = [d for d, c in counter.items() if c == max_count]
