@@ -60,7 +60,7 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
 
         # Собираем все дедлайны по этому уроку
         deadline_elems = soup.find_all("b", id=lambda x: x and x.startswith(f"deadline_{lesson_id}"))
-
+        print(deadline_elems)
         if not deadline_elems:
             continue  # если дедлайнов нет → пропускаем
 
