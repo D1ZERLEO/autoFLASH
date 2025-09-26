@@ -2,12 +2,19 @@ import os
 import requests
 from bs4 import BeautifulSoup
 
-def get_homeworks(s: requests.Session, lesson_id):
-    # теперь не создаём новую сессию
+def get_homeworks(s: requests.Session, lesson_id: str) -> requests.Response:
+    """
+    Получаем страницу домашки по уроку через переданную сессию.
+    """
+    # Загружаем страницу логина и берём CSRF токен
     login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
     soup = BeautifulSoup(login_page.text, "html.parser")
-    csrf_token = soup.find("input", {"name": "_token"}).get("value")
+    csrf_input = soup.find("input", {"name": "_token"})
+    if not csrf_input:
+        raise RuntimeError("Не удалось найти CSRF токен на странице логина")
+    csrf_token = csrf_input.get("value")
 
+    # Авторизация
     login_data = {
         "email": os.getenv("API_ACCOUNT_EMAIL"),
         "password": os.getenv("API_ACCOUNT_PASSWORD"),
@@ -18,6 +25,7 @@ def get_homeworks(s: requests.Session, lesson_id):
     if "login" in login_resp.url:
         raise RuntimeError("Авторизация не удалась")
 
+    # Получаем страницу с домашкой
     resp = s.get(
         f'https://{os.getenv("API_DOMAIN")}/student_live/index',
         params={
