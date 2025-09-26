@@ -27,7 +27,8 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
         logger.error("Не удалось найти CSRF токен на странице логина")
         return []
     csrf_token = csrf_input.get("value")
-
+    print("CSRF token:", csrf_token)
+    
     login_data = {"email": email, "password": password, "_token": csrf_token}
     login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data)
     if "login" in login_resp.url:
