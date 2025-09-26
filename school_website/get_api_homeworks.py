@@ -1,3 +1,6 @@
+import os
+import requests
+
 def get_homeworks(s: requests.Session, lesson_id: str):
     # НЕ делаем login здесь!
     # Берём страницу домашки напрямую через сессию, которая уже авторизована
