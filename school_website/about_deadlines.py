@@ -112,7 +112,7 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
                         logger.error(f"Ошибка форматирования даты {deadline_date}: {e}")
         
         logger.info(f"Итого собрано дедлайнов: {len(deadlines)}")
-        
+        print(deadlines)
         return deadlines
         
     except Exception as e:
