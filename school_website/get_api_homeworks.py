@@ -1,21 +1,39 @@
 import os
-
 import requests
-
+from bs4 import BeautifulSoup
 
 def get_homeworks(lesson_id):
-    """
-    !!! Вероятно, наступил новый блок, поэтому в github.secrets нужно
-    поменять переменную MODULE_ID на айдишник нового модуля. Для этого
-    вручную зайдите на сайт апи, посмотрите журнал по домашке из нового блока.
-    В адресной строке изучите ссылку. Число в параметре &module_id= будет тем, что вам нужно.
-    """
-
     with requests.Session() as s:
-        s.post(f"https://{os.getenv('API_DOMAIN')}/login", data={
-            'email': os.getenv('API_ACCOUNT_EMAIL'),
-            'password': os.getenv('API_ACCOUNT_PASSWORD')
-        })
+        # шаг 1: грузим страницу логина и берём CSRF-токен
+        login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
+        soup = BeautifulSoup(login_page.text, "html.parser")
+        csrf_token = soup.find("input", {"name": "_token"}).get("value")
 
-        return s.get(
-            f'https://{os.getenv("API_DOMAIN")}/student_live/index?email=&full_name=&hidden_last_name=&hidden_first_name=&hidden_mid_name=&vk_id=&subject_id=20&course_id=1856&module_id={os.getenv("MODULE_ID")}&lesson_id={lesson_id}')
+        # шаг 2: авторизация
+        login_data = {
+            "email": os.getenv("API_ACCOUNT_EMAIL"),
+            "password": os.getenv("API_ACCOUNT_PASSWORD"),
+            "_token": csrf_token,
+        }
+        login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data)
+
+        if "login" in login_resp.url:
+            raise RuntimeError("Авторизация не удалась")
+
+        # шаг 3: получаем страницу с домашкой
+        resp = s.get(
+            f'https://{os.getenv("API_DOMAIN")}/student_live/index',
+            params={
+                "email": "",
+                "full_name": "",
+                "hidden_last_name": "",
+                "hidden_first_name": "",
+                "hidden_mid_name": "",
+                "vk_id": "",
+                "subject_id": "20",
+                "course_id": "1856",
+                "module_id": os.getenv("MODULE_ID"),
+                "lesson_id": lesson_id,
+            },
+        )
+        return resp
