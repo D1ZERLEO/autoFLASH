@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 import logging
 from datetime import datetime
 
-logger = logging.getLogger(name)
+logger = logging.getLogger(__name__)
 
 def get_deadlines() -> list[tuple[str, Any, Any]]:
     # Получаем учетные данные из переменных окружения
@@ -104,3 +104,19 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
                     # Преобразуем дату из формата YYYY-MM-DD в DD.MM.YYYY
                     try:
                         date_obj = datetime.strptime(deadline_date, '%Y-%m-%d')
+                        formatted_date = date_obj.strftime('%d.%m.%Y')  # Исправляем формат здесь
+                        
+                        deadlines.append((lesson_id, title, formatted_date))
+                        logger.info(f"Добавлен дедлайн: {lesson_id} - {title} - {formatted_date}")
+                    except ValueError as e:
+                        logger.error(f"Ошибка форматирования даты {deadline_date}: {e}")
+        
+        logger.info(f"Итого собрано дедлайнов: {len(deadlines)}")
+        
+        return deadlines
+        
+    except Exception as e:
+        logger.error(f"Исключение в get_deadlines: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return []
