@@ -2,8 +2,10 @@ import os
 import requests
 
 def get_homeworks(s: requests.Session, lesson_id: str):
-    # НЕ делаем login здесь!
-    # Берём страницу домашки напрямую через сессию, которая уже авторизована
+    """
+    Получаем страницу домашки через уже авторизованную сессию.
+    Не делаем логин внутри!
+    """
     resp = s.get(
         f'https://{os.getenv("API_DOMAIN")}/student_live/index',
         params={
