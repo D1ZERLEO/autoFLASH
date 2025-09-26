@@ -1,122 +1,124 @@
-from typing import Any
+from typing import Any, List, Tuple
 import os
 import requests
 from bs4 import BeautifulSoup
 import logging
 from datetime import datetime
+from collections import Counter
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-def get_deadlines() -> list[tuple[str, Any, Any]]:
-    # Получаем учетные данные из переменных окружения
-    email = os.getenv('API_ACCOUNT_EMAIL')
-    password = os.getenv('API_ACCOUNT_PASSWORD')
-    
-    if not email or not password:
-        logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL и/или API_ACCOUNT_PASSWORD")
+
+def get_deadlines(course_id: str = "1856", subject_id: str = "20") -> List[Tuple[str, Any, Any]]:
+    domain = os.getenv("API_DOMAIN")
+    email = os.getenv("API_ACCOUNT_EMAIL")
+    password = os.getenv("API_ACCOUNT_PASSWORD")
+
+    if not domain or not email or not password:
+        logger.error("Не заданы API_DOMAIN / API_ACCOUNT_EMAIL / API_ACCOUNT_PASSWORD")
         return []
-    
-    logger.info(f"Авторизация для пользователя: {email}")
-    
-    # Создаем сессию для сохранения cookies
+
     session = requests.Session()
-    
-    try:
-        # Шаг 1: Получаем страницу логина для извлечения CSRF-токена
-        login_page_url = "https://admin.100points.ru/login"
-        logger.info(f"Загрузка страницы логина: {login_page_url}")
-        login_page_response = session.get(login_page_url)
-        
-        if login_page_response.status_code != 200:
-            logger.error(f"Ошибка загрузки страницы логина: {login_page_response.status_code}")
-            return []
-        
-        # Парсим CSRF-токен из формы
-        soup = BeautifulSoup(login_page_response.content, 'html.parser')
-        csrf_token = soup.find('input', {'name': '_token'})
-        
-        if not csrf_token:
-            logger.error("Не удалось найти CSRF-токен на странице логина")
-            return []
-        
-        csrf_token_value = csrf_token.get('value')
-        logger.info("CSRF-токен найден")
-        
-        # Шаг 2: Выполняем авторизацию
-        login_data = {
-            'email': email,
-            'password': password,
-            '_token': csrf_token_value
-        }
-        
-        logger.info("Отправка данных авторизации...")
-        login_response = session.post(login_page_url, data=login_data, allow_redirects=True)
-        
-        # Проверяем, успешна ли авторизация
-        if "login" in login_response.url:
-            logger.error("Ошибка авторизации: остались на странице логина")
-            return []
-        
-        logger.info("Авторизация успешна")
-        
-        # Шаг 3: Получаем страницу журнала с параметрами фильтрации
-        journal_url = "https://admin.100points.ru/student_live/index"
-        params = {
-            'subject_id': '20',
-            'course_id': '1856',
-        }
-        
-        logger.info(f"Загрузка страницы журнала с параметрами: {params}")
-        journal_response = session.get(journal_url, params=params)
-        
-        if journal_response.status_code != 200:
-            logger.error(f"Ошибка загрузки страницы журнала: {journal_response.status_code}")
-            return []
-        
-        # Парсим HTML журнала
-        soup = BeautifulSoup(journal_response.content, 'html.parser')
-        
-        deadlines = []
-        seen_lessons = set()  # Для устранения дубликатов
-        
-        # Находим все уроки в заголовке таблицы (первая строка)
-        lesson_headers = soup.select('thead tr:first-child th[data-lesson-id]')
-        logger.info(f"Найдено уроков в заголовке: {len(lesson_headers)}")
-        
-        for lesson_header in lesson_headers:
-            lesson_id = lesson_header.get('data-lesson-id')
-            title = lesson_header.get_text(strip=True)
-            
-            # Пропускаем дубликаты
-            if not lesson_id or lesson_id in seen_lessons:
-                continue
-                
-            seen_lessons.add(lesson_id)
-            
-            # Ищем первый дедлайн для этого урока
-            deadline_elem = soup.find('b', id=lambda x: x and f'deadline_{lesson_id}' in x)
-            
-            if deadline_elem:
-                deadline_datetime = deadline_elem.get('data-datetime', '')
-                deadline_date = deadline_datetime.split('T')[0] if deadline_datetime else ''
-                
-                if deadline_date:
-                    # Преобразуем дату из формата YYYY-MM-DD в DD.MM.YYYY
-                    try:
-                        date_obj = datetime.strptime(deadline_date, '%Y-%m-%d')
-                        formatted_date = date_obj.strftime('%d.%m.%Y')  # Исправляем формат здесь
-                        
-                        deadlines.append((lesson_id, title, formatted_date))
-                        logger.info(f"Добавлен дедлайн: {lesson_id} - {title} - {formatted_date}")
-                    except ValueError as e:
-                        logger.error(f"Ошибка форматирования даты {deadline_date}: {e}")
-        
-        logger.info(f"Итого собрано дедлайнов: {len(deadlines)}")
-        print(deadlines)
-        return deadlines
-        
-    except Exception as e:
-        logger.error(f"Исключение в get_deadlines: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
+
+    # 1) Получаем страницу логина и CSRF-токен
+    login_url = f"https://{domain}/login"
+    r = session.get(login_url, timeout=15)
+    if r.status_code != 200:
+        logger.error("Не удалось загрузить страницу логина: %s", r.status_code)
         return []
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    token_input = soup.find("input", {"name": "_token"})
+    if not token_input or not token_input.get("value"):
+        logger.error("CSRF-токен не найден на странице логина (структура страницы изменилась).")
+        return []
+    csrf = token_input.get("value")
+
+    # 2) Логинимся (форма обычная, data=)
+    login_data = {"email": email, "password": password, "_token": csrf}
+    login_resp = session.post(login_url, data=login_data, allow_redirects=True, timeout=15)
+
+    # простая проверка успешности: пробуем получить страницу журнала и убедиться, что там есть thead
+    live_url = f"https://{domain}/student_live/index"
+    params = {"course_id": course_id, "subject_id": subject_id}
+    page = session.get(live_url, params=params, timeout=15)
+    if page.status_code != 200:
+        logger.error("Не удалось загрузить student_live (status=%s).", page.status_code)
+        return []
+
+    soup = BeautifulSoup(page.text, "html.parser")
+
+    # Находим thead с заголовками уроков — берём ПЕРВУЮ строку <tr> в thead (top-level lessons)
+    thead = soup.find("thead", id="lessons_modal_control") or soup.find("thead")
+    if not thead:
+        logger.error("thead не найден на странице student_live — изменена структура.")
+        return []
+
+    # Найдём первую строку тр в thead, содержащую th с data-lesson-id
+    top_row = None
+    for tr in thead.find_all("tr"):
+        ths = tr.find_all("th", attrs={"data-lesson-id": True})
+        if ths:
+            top_row = tr
+            break
+
+    if not top_row:
+        logger.error("Не найден top-level row с th[data-lesson-id].")
+        return []
+
+    lesson_ths = top_row.find_all("th", attrs={"data-lesson-id": True})
+    logger.info("Найдено уроков в верхней строке заголовка: %d", len(lesson_ths))
+
+    deadlines = []
+
+    for th in lesson_ths:
+        lesson_id = th.get("data-lesson-id", "").strip()
+        title = " ".join(th.stripped_strings)  # аккуратно берём весь текст заголовка
+        if not lesson_id:
+            continue
+
+        # Найдём во всём документе все <b id="deadline_{lesson_id}user_id..."> и соберём data-datetime
+        b_elems = soup.find_all("b", id=lambda x: x and x.startswith(f"deadline_{lesson_id}"))
+        date_iso_list = []
+        for b in b_elems:
+            dt_raw = (b.get("data-datetime") or "").strip()
+            if not dt_raw:
+                continue
+            # ожидаемый формат: 2025-10-02T23:59 (ISO-ish). Попробуем robust-парсинг:
+            try:
+                dt = datetime.fromisoformat(dt_raw)
+            except Exception:
+                try:
+                    dt = datetime.strptime(dt_raw, "%Y-%m-%dT%H:%M")
+                except Exception:
+                    logger.debug("Не удалось распарсить data-datetime: %s (lesson %s)", dt_raw, lesson_id)
+                    continue
+            date_iso_list.append(dt.date().isoformat())  # YYYY-MM-DD
+
+        if not date_iso_list:
+            # ВАЖНО: если для урока нет ни одной валидной data-datetime — мы НЕ присваиваем "сегодня".
+            logger.debug("Урок %s (%s) — дедлайнов не найдено, пропускаем.", lesson_id, title)
+            continue
+        # Берём наиболее частую дату (mode). При ничьей — выбираем раннюю дату среди кандидатов.
+        counter = Counter(date_iso_list)
+        max_count = max(counter.values())
+        candidates = [d for d, c in counter.items() if c == max_count]
+        chosen_iso = min(candidates)  # earliest among most-frequent
+        chosen_date_obj = datetime.fromisoformat(chosen_iso).date()
+        formatted = chosen_date_obj.strftime("%d.%m.%Y")
+
+        deadlines.append((lesson_id, title, formatted))
+        logger.info("Добавлен дедлайн: %s — %s — %s (count=%d)", lesson_id, title, formatted, max_count)
+
+    logger.info("Всего дедлайнов собрано: %d", len(deadlines))
+
+    # Опционально: отсортировать по дате (ранее -> позже)
+    def _date_key(item):
+        try:
+            return datetime.strptime(item[2], "%d.%m.%Y").date()
+        except Exception:
+            return datetime.max.date()
+
+    deadlines.sort(key=_date_key)
+    return deadlines
