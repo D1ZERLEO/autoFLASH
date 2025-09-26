@@ -6,16 +6,16 @@ def get_homeworks(s: requests.Session, lesson_id: str) -> requests.Response:
     """
     Получаем страницу домашки по уроку через переданную сессию.
     """
-    # Загружаем страницу логина и берём CSRF токен
+    # Загружаем страницу логина и берём CSRF токен из meta
     login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
-    print("Login page status:", login_page.status_code)
-    print("Login page snippet:", login_page.text[:500])
     soup = BeautifulSoup(login_page.text, "html.parser")
-    csrf_input = soup.find("input", {"name": "_token"})
-    if not csrf_input:
+
+    csrf_meta = soup.find("meta", {"name": "csrf-token"})
+    if not csrf_meta:
         raise RuntimeError("Не удалось найти CSRF токен на странице логина")
-    csrf_token = csrf_input.get("value")
+    csrf_token = csrf_meta.get("content")
     print("CSRF token:", csrf_token)
+
     # Авторизация
     login_data = {
         "email": os.getenv("API_ACCOUNT_EMAIL"),
@@ -23,7 +23,6 @@ def get_homeworks(s: requests.Session, lesson_id: str) -> requests.Response:
         "_token": csrf_token,
     }
     login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data)
-
     if "login" in login_resp.url:
         raise RuntimeError("Авторизация не удалась")
 
