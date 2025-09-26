@@ -75,14 +75,19 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
             if not dt_raw:
                 continue
             try:
-                dt = datetime.strptime(dt_raw, "%Y-%m-%dT%H:%M")
-                # Пропускаем "фейковые" дедлайны ≈ сейчас
-                print(dt)
-                if abs(dt - now) <= tolerance:
+                dt = datetime.fromisoformat(dt_raw)
+            except ValueError:
+                try:
+                    dt = datetime.strptime(dt_raw, "%Y-%m-%dT%H:%M")
+                except Exception:
+                    logger.warning(f"Не удалось распарсить дату: {dt_raw}")
                     continue
-                dates.append(dt.date())
-            except Exception:
-                logger.warning(f"Не удалось распарсить дату: {dt_raw}")
+        
+            # Пропускаем "фейковые" дедлайны ≈ сейчас
+            if abs(dt - now) <= tolerance:
+                continue
+        
+            dates.append(dt.date())
 
         if not dates:
             continue
