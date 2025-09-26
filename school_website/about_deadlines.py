@@ -3,7 +3,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import Counter
 
 logger = logging.getLogger(__name__)
@@ -54,15 +54,18 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
 
     lesson_headers = top_row.find_all("th", attrs={"data-lesson-id": True})
 
+    now = datetime.now()
+    tolerance = timedelta(minutes=30)  # допуск ±30 минут
+
     for header in lesson_headers:
         lesson_id = header.get("data-lesson-id")
         title = header.get_text(strip=True)
 
         # Собираем все дедлайны по этому уроку
         deadline_elems = soup.find_all("b", id=lambda x: x and x.startswith(f"deadline_{lesson_id}"))
-        print(deadline_elems)
+
         if not deadline_elems:
-            continue  # если дедлайнов нет → пропускаем
+            continue
 
         dates = []
         for elem in deadline_elems:
@@ -71,6 +74,9 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
                 continue
             try:
                 dt = datetime.strptime(dt_raw, "%Y-%m-%dT%H:%M")
+                # Пропускаем "фейковые" дедлайны ≈ сейчас
+                if abs(dt - now) <= tolerance:
+                    continue
                 dates.append(dt.date())
             except Exception:
                 logger.warning(f"Не удалось распарсить дату: {dt_raw}")
