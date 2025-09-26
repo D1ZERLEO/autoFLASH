@@ -56,5 +56,5 @@ def get_deadlines() -> list[tuple[str, Any, Any]]:
             deadlines.append((lesson_id, title, formatted_date))
         except Exception:
             logger.warning(f"Не удалось распарсить дату: {dt_raw}")
-
+    print(deadlines)
     return deadlines
