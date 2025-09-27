@@ -25,4 +25,4 @@ if __name__ == "__main__":
     with requests.Session() as s:
         deadlines = sort_by_date(get_deadlines(s))  # логин выполняется здесь один раз
         deadline_sender(deadlines)
-        add_to_the_table(s, deadlines)
+        #add_to_the_table(s, deadlines)
