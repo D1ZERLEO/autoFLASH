@@ -112,7 +112,7 @@ def get_homeworks(s: requests.Session, lesson_id):
     try:
         if method == "post":
             login_resp = s.post(action, data=payload, headers={**headers, "Referer": login_url}, timeout=15, allow_redirects=True)
-    else:
+        else:
             login_resp = s.get(action, params=payload, headers={**headers, "Referer": login_url}, timeout=15, allow_redirects=True)
     except Exception as e:
         logger.exception("Exception while submitting login: %s", e)
