@@ -36,13 +36,12 @@ def get_homeworks(s: requests.Session, lesson_id):
         "Referer": login_url,
     }
 
-    # отправляем POST на action
+    # авторизация
     login_resp = s.post(action, data=login_data, headers=headers)
-
     if "login" in login_resp.url or "Ошибка" in login_resp.text:
         raise RuntimeError("Авторизация не удалась")
 
-    # если авторизация прошла — идём дальше
+    # запрос на страницу с домашками
     resp = s.get(
         f'https://{os.getenv("API_DOMAIN")}/student_live/index',
         params={
@@ -59,5 +58,5 @@ def get_homeworks(s: requests.Session, lesson_id):
         },
         headers=headers,
     )
-    print(resp)
+    resp.raise_for_status()
     return resp
