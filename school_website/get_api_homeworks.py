@@ -1,11 +1,23 @@
 import os
 import requests
+from bs4 import BeautifulSoup
 
-def get_homeworks(s: requests.Session, lesson_id: str):
-    """
-    Получаем страницу домашки через уже авторизованную сессию.
-    Не делаем логин внутри!
-    """
+def get_homeworks(s: requests.Session, lesson_id):
+    # теперь не создаём новую сессию
+    login_page = s.get(f"https://{os.getenv('API_DOMAIN')}/login")
+    soup = BeautifulSoup(login_page.text, "html.parser")
+    csrf_token = soup.find("input", {"name": "_token"}).get("value")
+
+    login_data = {
+        "email": os.getenv("API_ACCOUNT_EMAIL"),
+        "password": os.getenv("API_ACCOUNT_PASSWORD"),
+        "_token": csrf_token,
+    }
+    login_resp = s.post(f"https://{os.getenv('API_DOMAIN')}/login", data=login_data)
+
+    if "login" in login_resp.url:
+        raise RuntimeError("Авторизация не удалась")
+
     resp = s.get(
         f'https://{os.getenv("API_DOMAIN")}/student_live/index',
         params={
