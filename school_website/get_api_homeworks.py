@@ -59,4 +59,5 @@ def get_homeworks(s: requests.Session, lesson_id):
         },
         headers=headers,
     )
+    print(resp)
     return resp
