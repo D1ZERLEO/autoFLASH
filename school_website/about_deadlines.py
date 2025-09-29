@@ -1,62 +1,53 @@
-from typing import List, Tuple
+from typing import Any, List, Tuple
 import os
 import requests
 from bs4 import BeautifulSoup
+import logging
 from datetime import datetime, timedelta, timezone
 from collections import Counter
-import logging
 
 logger = logging.getLogger(__name__)
 
-def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
-    """
-    Получаем дедлайны всех уроков через переданную сессию.
-    Логин выполняется один раз здесь.
-    """
+
+def get_deadlines() -> List[Tuple[str, Any, Any]]:
     email = os.getenv('API_ACCOUNT_EMAIL')
     password = os.getenv('API_ACCOUNT_PASSWORD')
-    domain = os.getenv('API_DOMAIN')
 
-    if not email or not password or not domain:
-        logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL / API_ACCOUNT_PASSWORD / API_DOMAIN")
+    if not email or not password:
+        logger.error("Не заданы переменные окружения API_ACCOUNT_EMAIL и/или API_ACCOUNT_PASSWORD")
         return []
 
-    # Шаг 1: GET /login
-    login_page = s.get(f"https://{domain}/login")
+    session = requests.Session()
+
+    # Логин
+    login_page = session.get("https://admin.100points.ru/login")
     soup = BeautifulSoup(login_page.text, "html.parser")
-    csrf_meta = soup.find("meta", {"name": "csrf-token"})
-    if not csrf_meta:
-        logger.error("Не удалось найти CSRF токен на странице логина")
-        return []
-    csrf_token = csrf_meta.get("content")
-    print("CSRF token:", csrf_token)
+    csrf_token = soup.find("input", {"name": "_token"}).get("value")
 
-    # Шаг 2: POST /login
-    headers = {
-        "X-CSRF-TOKEN": csrf_token,
-        "X-Requested-With": "XMLHttpRequest",
-        "Referer": f"https://{domain}/login",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    }
     login_data = {"email": email, "password": password, "_token": csrf_token}
-    login_resp = s.post(f"https://{domain}/login", data=login_data, headers=headers)
-    if "login" in login_resp.url or login_resp.status_code != 200:
+    login_response = session.post("https://admin.100points.ru/login", data=login_data)
+
+    if "login" in login_response.url:
         logger.error("Ошибка авторизации")
         return []
 
-    # Шаг 3: GET страницы с уроками
-    resp = s.get(f"https://{domain}/student_live/index", params={"subject_id": "20", "course_id": "1856"})
+    # Загружаем страницу с уроками
+    resp = session.get(
+        "https://admin.100points.ru/student_live/index",
+        params={"subject_id": "20", "course_id": "1856"}
+    )
     soup = BeautifulSoup(resp.text, "html.parser")
 
     deadlines = []
 
-    # Находим первую строку с th[data-lesson-id]
+    # Берём первую строку с th[data-lesson-id]
     top_row = None
     for tr in soup.find_all("tr"):
         ths = tr.find_all("th", attrs={"data-lesson-id": True})
         if ths:
             top_row = tr
             break
+
     if not top_row:
         logger.error("Не найден заголовок с th[data-lesson-id]")
         return []
@@ -65,12 +56,16 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
 
     moscow_tz = timezone(timedelta(hours=3))
     now = datetime.now(moscow_tz)
-    tolerance = timedelta(minutes=30)
+    print(now)
+    tolerance = timedelta(minutes=30)  # допуск ±30 минут
 
     for header in lesson_headers:
         lesson_id = header.get("data-lesson-id")
         title = header.get_text(strip=True)
+
+        # Собираем все дедлайны по этому уроку
         deadline_elems = soup.find_all("b", id=lambda x: x and x.startswith(f"deadline_{lesson_id}"))
+
         if not deadline_elems:
             continue
 
@@ -89,19 +84,23 @@ def get_deadlines(s: requests.Session) -> List[Tuple[str, str, str]]:
                     continue
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=moscow_tz)
+            # Пропускаем "фейковые" дедлайны ≈ сейчас
             if abs(dt - now) <= tolerance:
                 continue
+        
             dates.append(dt.date())
 
         if not dates:
             continue
 
-        # Берём самую популярную дату
+        # Находим самую популярную дату (mode)
         counter = Counter(dates)
         max_count = max(counter.values())
         candidates = [d for d, c in counter.items() if c == max_count]
-        chosen_date = min(candidates)
+        chosen_date = min(candidates)  # из популярных берём ближайшую по времени
+
         formatted_date = chosen_date.strftime("%d.%m.%Y")
         deadlines.append((lesson_id, title, formatted_date))
 
+    print(deadlines)
     return deadlines
