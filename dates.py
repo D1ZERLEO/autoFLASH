@@ -34,19 +34,14 @@ def filter_dates_by_today(data: tp.List[tp.Tuple[str]]) -> tp.List[str]:
 
 
 def filter_dates_in_range(
-        data: tp.List[tp.Tuple[str]], last_deadline: str
-) -> tp.List[tp.Tuple[int, str, str]]:
-    today = get_moscow_date()
-
-    # Преобразуем строку с last_deadline в объект даты
-    deadline_date = datetime.strptime(last_deadline, "%d.%m.%Y").date()
+        data: tp.List[tp.Tuple[str, str, str]], last_deadline: str
+) -> tp.List[tp.Tuple[str, str, str]]:
+    # преобразуем last_deadline в дату
+    deadline_date = datetime.strptime(last_deadline, "%d.%m.%Y").date() if last_deadline else datetime.min.date()
 
     result = []
     for lesson_id, title, date_str in data:
-        # Преобразуем строку с датой в объект даты
         item_date = datetime.strptime(date_str, "%d.%m.%Y").date()
-
-        # Проверяем, что дата находится в нужном диапазоне
-        if deadline_date < item_date and item_date <= today:
+        if item_date > deadline_date:   # убираем проверку на today
             result.append((lesson_id, title, date_str))
     return result
