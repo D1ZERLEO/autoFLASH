@@ -20,7 +20,7 @@ def add_to_the_table(s, deadlines_list):
     for lesson_id, lesson_title, deadline in items:
         print("ВЫЗЫВАЕМ write_lesson_homework для", lesson_id, lesson_title, deadline)
         write_lesson_homework(s, lesson_id, lesson_title, deadline)
-
+print('get_last_deadline',get_last_deadline())
 
 if __name__ == "__main__":
     print('app.py started')
