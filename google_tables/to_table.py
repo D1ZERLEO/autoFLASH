@@ -113,26 +113,12 @@ import os
 def get_last_deadline() -> str:
     worksheet = get_worksheet(os.getenv('YOUR_GOOGLE_SHEET_TITLE'))
     last_num = worksheet.col_count
-    
-    while last_num > 0:  # Добавляем условие, чтобы не уйти в отрицательные значения
+    while True:
         try:
-            cell_data = worksheet.get(f'{get_column_name(last_num)}4')
-            
-            # Проверяем, что данные существуют и не пустые
-            if not cell_data or not cell_data[0] or not cell_data[0][0]:
-                last_num -= 1
-                continue
-                
-            date = cell_data[0][0]
+            date = worksheet.get(f'{get_column_name(last_num)}4')[0][0]
             if re.match(r"^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.(\d{4})$", date):
                 return date
-            else:
-                last_num -= 1
-                
         except Exception as error:
             last_num -= 1
             print('from to_table.get_last_deadline skipped:', error)
             continue
-    
-    # Если не найдено ни одной даты, возвращаем пустую строку или значение по умолчанию
-    return ""  # или return "01.01.2000" или другое значение по умолчанию
