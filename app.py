@@ -22,9 +22,13 @@ def add_to_the_table(s, deadlines_list):
 
 
 if __name__ == "__main__":
+    print('app.py started')
     load_dotenv()
 
     with requests.Session() as s:
         deadlines = sort_by_date(get_deadlines())
+        print('getdd started')
         deadline_sender(deadlines)
+        print('dd send')
         add_to_the_table(s, deadlines)
+        print('dd add to started')
