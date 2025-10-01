@@ -15,9 +15,10 @@ def deadline_sender(deadlines_list):
 
 
 def add_to_the_table(s, deadlines_list):
-    for lesson_id, lesson_title, deadline in filter_dates_in_range(
-            deadlines_list, last_deadline=get_last_deadline()
-    ):
+    items = list(filter_dates_in_range(deadlines_list, last_deadline=get_last_deadline()))
+    print("filter_dates_in_range вернул:", items)   # <-- добавь
+    for lesson_id, lesson_title, deadline in items:
+        print("ВЫЗЫВАЕМ write_lesson_homework для", lesson_id, lesson_title, deadline)
         write_lesson_homework(s, lesson_id, lesson_title, deadline)
 
 
