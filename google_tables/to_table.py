@@ -110,15 +110,24 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
 import re
 import os
 
+import re
+from datetime import datetime
+
 def get_last_deadline() -> str:
     worksheet = get_worksheet(os.getenv('YOUR_GOOGLE_SHEET_TITLE'))
-    last_num = worksheet.col_count
-    while True:
-        try:
-            date = worksheet.get(f'{get_column_name(last_num)}4')[0][0]
-            if re.match(r"^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.(\d{4})$", date):
-                return date
-        except Exception as error:
-            last_num -= 1
-            print('from to_table.get_last_deadline skipped:', error)
-            continue
+    fmt = "%d.%m.%Y"
+
+    # Берём первую строку целиком (заголовки)
+    headers = worksheet.row_values(4)  # у тебя даты именно в строке 4
+    print("Row 4 values:", headers)  # для отладки
+
+    valid_dates = []
+    for cell in headers:
+        if re.match(r"^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.(\d{4})$", cell):
+            valid_dates.append(cell)
+
+    if not valid_dates:
+        return ""  # нет дат в таблице
+
+    # Возвращаем самую позднюю дату
+    return max(valid_dates, key=lambda d: datetime.strptime(d, fmt))
