@@ -58,39 +58,19 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
     columns = [get_column_name(worksheet.col_count + i) for i in range(1, len(totals) + 1)]
     worksheet.add_cols(len(totals))
 
-    worksheet.format(f'{columns[0]}', {
-        "borders": {
-            "left": borders_type
-        }
-    })
-
-    worksheet.format(f'{columns[-1]}', {
-        "borders": {
-            "right": borders_type
-        }
-    })
+    worksheet.format(f'{columns[0]}', {"borders": {"left": borders_type}})
+    worksheet.format(f'{columns[-1]}', {"borders": {"right": borders_type}})
 
     worksheet.update_acell(f'{columns[0]}1', title)
     worksheet.merge_cells(f'{columns[0]}1:{columns[-1]}2')
     worksheet.merge_cells(f'{columns[0]}4:{columns[-1]}4')
     worksheet.update_acell(f'{columns[0]}4', deadline)
     worksheet.format(f'{columns[0]}1:{columns[-1]}2', {
-        "backgroundColor": {
-            "red": 180 / 255,
-            "green": 167 / 255,
-            "blue": 214 / 255
-        },
+        "backgroundColor": {"red": 180 / 255, "green": 167 / 255, "blue": 214 / 255},
         "horizontalAlignment": "CENTER",
         "verticalAlignment": "BOTTOM",
-        "textFormat": {
-            "fontSize": 10,
-            "bold": True
-        },
-        "borders": {
-            "right": borders_type,
-            "left": borders_type,
-            "bottom": borders_type
-        }
+        "textFormat": {"fontSize": 10, "bold": True},
+        "borders": {"right": borders_type, "left": borders_type, "bottom": borders_type}
     })
 
     for i, (colour, title, mark) in enumerate(zip(colours, LEVEL_TITLES, totals)):
@@ -98,9 +78,7 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
         worksheet.update_acell(f'{columns[i]}5', title)
         worksheet.merge_cells(f'{columns[i]}5:{columns[i]}6')
 
-        borders = {
-            "bottom": borders_type
-        }
+        borders = {"bottom": borders_type}
         if i == 0:
             borders.update({"left": borders_type})
         if i == len(totals) - 1:
@@ -114,21 +92,19 @@ def write(title: str, deadline: str, totals: List[str], q_students: int, grades:
             },
             "horizontalAlignment": "CENTER",
             "verticalAlignment": "BOTTOM",
-            "textFormat": {
-                "fontSize": 8
-            },
+            "textFormat": {"fontSize": 8},
             "borders": borders
         })
 
-    delay = 10
-    for row in range(7, q_students + 7):
-        for col in columns:
-            worksheet.update_acell(f'{col}{row}', next(grades))
+    # ⬇️ Вот здесь заменил: собираем все значения в массив и грузим одним запросом
+    values = []
+    for _ in range(q_students):
+        row_vals = [next(grades) for _ in totals]
+        values.append(row_vals)
 
-        delay -= 1
-        if delay == 0:
-            sleep(30)
-            delay = 10
+    start_row = 7
+    end_row = 7 + q_students - 1
+    worksheet.update(f"{columns[0]}{start_row}:{columns[-1]}{end_row}", values)
 
 
 import re
