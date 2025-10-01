@@ -28,6 +28,7 @@ def _find_csrf(soup):
     return None
 
 def get_homeworks(s: requests.Session, lesson_id):
+    print('get_homeworks is working')
     """
     Авторизуется на https://{API_DOMAIN}/login и возвращает Response страницы student_live/index.
     Response дополнительно содержит attribute parsed_homeworks — list of (href, spans_list, deadline_iso_or_None).
@@ -183,5 +184,5 @@ def get_homeworks(s: requests.Session, lesson_id):
         setattr(resp, "parsed_homeworks", parsed)
     except Exception:
         logger.exception("Не удалось присвоить parsed_homeworks к Response объекту")
-
+    print(resp)
     return resp
