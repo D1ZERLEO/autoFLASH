@@ -46,7 +46,7 @@ def send_deadline_message(lesson_title: str) -> bool:
 
     # Формируем параметры для отправки картинки в ЛС и отправляем её
     params = {
-        'chat_id': '2',  # ID пользователя, которому мы должны отправить картинку
+        'chat_id': '1',  # ID пользователя, которому мы должны отправить картинку
         'random_id': random.randint(1, 2147483647),
         'message': f'@all, сегодня #дедлайн по {lesson_title}',
         'attachment': f"photo-{os.getenv('VK_GROUP_ID')}_{photo_id}",
