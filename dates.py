@@ -33,15 +33,22 @@ def filter_dates_by_today(data: tp.List[tp.Tuple[str]]) -> tp.List[str]:
     return result
 
 
+from datetime import datetime
+import pytz  # нужно установить: pip install pytz
+
 def filter_dates_in_range(
         data: tp.List[tp.Tuple[str, str, str]], last_deadline: str
 ) -> tp.List[tp.Tuple[str, str, str]]:
     # преобразуем last_deadline в дату
     deadline_date = datetime.strptime(last_deadline, "%d.%m.%Y").date() if last_deadline else datetime.min.date()
 
+    # получаем текущую дату и время в МСК
+    msk_timezone = pytz.timezone('Europe/Moscow')
+    current_msk_datetime = datetime.now(msk_timezone)
+    
     result = []
     for lesson_id, title, date_str in data:
         item_date = datetime.strptime(date_str, "%d.%m.%Y").date()
-        if item_date == deadline_date:   # убираем проверку на today
+        if item_date < current_msk_datetime.date():  # сравниваем только даты (без времени)
             result.append((lesson_id, title, date_str))
     return result
