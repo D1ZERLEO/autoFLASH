@@ -8,7 +8,7 @@ VK_API_VERSION = '5.101'
 VK_DEADLINE_PICTURE = 'vk/img/deadline.jpg'
 
 
-def connect():
+ef connect():
     """Авторизуемся в VK"""
 
     vk_session = vk_api.VkApi(
