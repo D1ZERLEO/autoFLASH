@@ -49,6 +49,6 @@ def filter_dates_in_range(
     result = []
     for lesson_id, title, date_str in data:
         item_date = datetime.strptime(date_str, "%d.%m.%Y").date()
-        if item_date < current_msk_datetime.date():  # сравниваем только даты (без времени)
+        if item_date < current_msk_datetime.date() and item_date> deadline_date :  # сравниваем только даты (без времени)
             result.append((lesson_id, title, date_str))
     return result
