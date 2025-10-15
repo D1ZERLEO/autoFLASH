@@ -136,39 +136,50 @@ def get_homeworks(s: requests.Session, lesson_id):
         "Шуйская Ирина Вячеславовна", "Egor Averchenkov", "Айсёна Светлова", "Nikita Ageev",
         "Алла Марущак", "Бектагиров Даниял Тагирович", "ヴォイシモイ ビラクトット", "Валерия Туровская","Вика Фрицлер"
     ]
-    for name in target_names:
-        params["full_name"] = name
-        logger.info("Fetching student_live for %s", name)
-        resp_one = s.get(student_live_url, params=params, headers=headers, timeout=15)
-        s2 = BeautifulSoup(resp_one.text, "html.parser")
-        tbody = s2.find("tbody", id="student_lives_body")
-        if not tbody:
-            continue
-
-        for tr in tbody.find_all("tr"):
-            tds = tr.find_all("td")
-            if len(tds) < 3:
-                continue
-            student_name = tds[2].get_text(strip=True)
-            if student_name != name:
-                continue
-
-            for a in tr.find_all("a", href=True):
-                href = a["href"]
-                if "student_live/tasks" not in href:
-                    continue
-                spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
-                b = tr.find("b", attrs={"data-datetime": True})
-                dt = b.get("data-datetime") if b else None
-                parsed.append((href, spans, dt))
-
-        time.sleep(0.3)  # пауза между запросами, чтобы не заддосить
-
-    # -----------------------------
-    logger.info("Parsed %d homework links", len(parsed))
+    parsed = []
     try:
-        setattr(resp_one, "parsed_homeworks", parsed)
+        max_pages = 10  # если больше 10 страниц — увеличь
+        for page_num in range(1, max_pages + 1):
+            params["page"] = page_num
+            logger.info("Fetching page %d of student_live", page_num)
+            resp_page = s.get(student_live_url, params=params, headers=headers, timeout=15)
+            s2 = BeautifulSoup(resp_page.text, "html.parser")
+            tbody = s2.find("tbody", id="student_lives_body")
+            if not tbody:
+                logger.info("No table body found on page %d, stopping.", page_num)
+                break
+    
+            rows = tbody.find_all("tr")
+            if not rows:
+                logger.info("No rows found on page %d, stopping.", page_num)
+                break
+    
+            for tr in rows:
+                tds = tr.find_all("td")
+                if len(tds) < 3:
+                    continue
+                student_name = tds[2].get_text(strip=True)
+    
+                for a in tr.find_all("a", href=True):
+                    href = a["href"]
+                    if "student_live/tasks" not in href:
+                        continue
+                    spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
+                    b = tr.find("b", attrs={"data-datetime": True})
+                    dt = b.get("data-datetime") if b else None
+                    parsed.append((student_name, href, spans, dt))
+        logger.info("Parsed %d homework links total", len(parsed))
+    
+    except Exception as e:
+        logger.exception("Ошибка парсинга student_live pages: %s", e)
+    
+    logger.info("Parsed %d homework links total", len(parsed))
+
+    # добавляем список всех найденных домашних в объект Response
+    try:
+        setattr(resp, "parsed_homeworks", parsed)
     except Exception:
         logger.exception("Не удалось присвоить parsed_homeworks к Response объекту")
 
-    return resp_one
+    # Возвращаем последний ответ (resp) с добавленным parsed_homeworks
+    return resp
