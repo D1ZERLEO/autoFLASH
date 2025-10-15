@@ -213,7 +213,7 @@ def get_homeworks(s: requests.Session, lesson_id):
 
                     parsed.append((href, spans, dt))
 
-    print(parsed)      
+        
     except Exception as e:
         logger.exception("Ошибка парсинга student_live page: %s", e)
 
@@ -223,5 +223,6 @@ def get_homeworks(s: requests.Session, lesson_id):
         setattr(resp, "parsed_homeworks", parsed)
     except Exception:
         logger.exception("Не удалось присвоить parsed_homeworks к Response объекту")
+    print(parsed)  
     print(resp)
     return resp
