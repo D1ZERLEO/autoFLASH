@@ -151,30 +151,69 @@ def get_homeworks(s: requests.Session, lesson_id):
         # Если хочешь, можно сделать raise здесь.
 
     # парсинг ссылок на домашки из <tbody id="student_lives_body">
+    target_names = {
+    "Дмитрий Постнов",
+    "Никита Морозов",
+    "Дима Бесогонов",
+    "Полина Сон",
+    "Егор Парбузин",
+    "Даниил Лучко",
+    "Тимур Махмудов",
+    "Денис Ганагин",
+    "Иван Романов",
+    "Дмитрий Нормов",
+    "Иван Шиганов",
+    "Анастасия Жихарева",
+    "Арина Конвисар",
+    "Виктория Ноубрейн",
+    "Софья Шишкина",
+    "Тимур Юлдашев",
+    "Ученик",
+    "Алина Колоскова",
+    "Полинка Каширская",
+    "Алексей Липский",
+    "Гаак Роман Витальевич",
+    "Зорченко Данила Сергеевич",
+    "Vlada Kalinskaya",
+    "Софа Мартынова",
+    "Степан Чугунов",
+    "Горб Вероника Александровна",
+    "Шуйская Ирина Вячеславовна",
+    "Egor Averchenkov",
+    "Айсари Светлова",
+    "Nikita Ageev",
+    "Алла Марущак",
+    "Бектагиров Даниял Тагирович",
+    "ヴォイシモイ ビラクトット",
+    "Валерия Туровская"
+    }
     parsed = []
     try:
         s2 = BeautifulSoup(resp.text, "html.parser")
         tbody = s2.find("tbody", id="student_lives_body")
         if tbody:
-            for a in tbody.find_all("a", href=True):
-                href = a["href"]
-                if "student_live/tasks" not in href:
+            for tr in tbody.find_all("tr"):
+                name_cell = tr.find_all("td")[2] if len(tr.find_all("td")) > 2 else None
+                if not name_cell:
                     continue
-                spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
-                # попытаемся найти дедлайн в родительских td: b[data-datetime]
-                parent_td = a.find_parent("td")
-                if not parent_td:
-                    # возможно дедлайн в соседнем td — ищем ближайший <b data-datetime> в строке
-                    tr = a.find_parent("tr")
-                    dt = None
-                    if tr:
-                        b = tr.find("b", attrs={"data-datetime": True})
-                        dt = b.get("data-datetime") if b and b.get("data-datetime") else None
-                else:
-                    b = parent_td.find("b", attrs={"data-datetime": True})
-                    dt = b.get("data-datetime") if b and b.get("data-datetime") else None
+                student_name = name_cell.get_text(strip=True)
+                if student_name not in target_names:
+                    continue  # пропускаем, если ученика нет в списке
+        
+                # ищем все ссылки на домашки внутри этой строки
+                for a in tr.find_all("a", href=True):
+                    href = a["href"]
+                    if "student_live/tasks" not in href:
+                        continue
+                    spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
+        
+                    # ищем дедлайн
+                    b = tr.find("b", attrs={"data-datetime": True})
+                    dt = b.get("data-datetime") if b else None
 
-                parsed.append((href, spans, dt))
+                    parsed.append((href, spans, dt))
+
+             
     except Exception as e:
         logger.exception("Ошибка парсинга student_live page: %s", e)
 
