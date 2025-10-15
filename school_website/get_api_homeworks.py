@@ -1,3 +1,4 @@
+import requests
 def get_homeworks(s: requests.Session, lesson_id):
     import os
     import sys
