@@ -136,8 +136,7 @@ def get_homeworks(s: requests.Session, lesson_id):
         "Шуйская Ирина Вячеславовна", "Egor Averchenkov", "Айсёна Светлова", "Nikita Ageev",
         "Алла Марущак", "Бектагиров Даниял Тагирович", "ヴォイシモイ ビラクトット", "Валерия Туровская","Вика Фрицлер"
     ]
-
-     for name in target_names:
+    for name in target_names:
         params["full_name"] = name
         logger.info("Fetching student_live for %s", name)
         resp_one = s.get(student_live_url, params=params, headers=headers, timeout=15)
