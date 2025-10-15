@@ -121,7 +121,6 @@ def get_homeworks(s: requests.Session, lesson_id):
     }
 
     parsed = []
-
     # -----------------------------
     # 🔹 вот тут фильтрация по именам
     # -----------------------------
@@ -138,7 +137,7 @@ def get_homeworks(s: requests.Session, lesson_id):
         "Алла Марущак", "Бектагиров Даниял Тагирович", "ヴォイシモイ ビラクトット", "Валерия Туровская","Вика Фрицлер"
     ]
 
-    for name in target_names:
+     for name in target_names:
         params["full_name"] = name
         logger.info("Fetching student_live for %s", name)
         resp_one = s.get(student_live_url, params=params, headers=headers, timeout=15)
@@ -146,19 +145,15 @@ def get_homeworks(s: requests.Session, lesson_id):
         tbody = s2.find("tbody", id="student_lives_body")
         if not tbody:
             continue
-    
-        homework_found = False  # Флаг для отслеживания первой найденной домашней работы
+
         for tr in tbody.find_all("tr"):
-            if homework_found:  # Если уже нашли домашнюю работу, пропускаем остальные
-                break
-                
             tds = tr.find_all("td")
             if len(tds) < 3:
                 continue
             student_name = tds[2].get_text(strip=True)
             if student_name != name:
                 continue
-    
+
             for a in tr.find_all("a", href=True):
                 href = a["href"]
                 if "student_live/tasks" not in href:
@@ -167,10 +162,9 @@ def get_homeworks(s: requests.Session, lesson_id):
                 b = tr.find("b", attrs={"data-datetime": True})
                 dt = b.get("data-datetime") if b else None
                 parsed.append((href, spans, dt))
-                homework_found = True  # Устанавливаем флаг, что нашли домашнюю работу
-                break  # Прерываем цикл по ссылкам после первой найденной
-    
-        time.sleep(0.3)
+
+        time.sleep(0.3)  # пауза между запросами, чтобы не заддосить
+
     # -----------------------------
     logger.info("Parsed %d homework links", len(parsed))
     try:
