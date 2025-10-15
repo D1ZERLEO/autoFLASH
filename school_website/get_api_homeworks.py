@@ -1,12 +1,12 @@
-# вставь вместо старой get_homeworks
+
 import os
 import sys
+import time
 import logging
 from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
-# логгер в stderr — чтобы вывод всегда был виден
 logger = logging.getLogger("get_api_homeworks")
 if not logger.handlers:
     h = logging.StreamHandler(stream=sys.stderr)
@@ -14,25 +14,21 @@ if not logger.handlers:
     logger.addHandler(h)
 logger.setLevel(logging.INFO)
 
+
 def _find_csrf(soup):
-    # ищем скрытые input'ы: _token, csrf_token и т.п.
     for name in ("_token", "csrf_token", "csrf-token", "csrf"):
         inp = soup.find("input", {"name": name})
         if inp and inp.get("value"):
             return inp["value"]
-    # meta
     for name in ("csrf-token", "_token", "csrf"):
         m = soup.find("meta", {"name": name})
         if m and m.get("content"):
             return m["content"]
     return None
 
+
 def get_homeworks(s: requests.Session, lesson_id):
     print('get_homeworks is working')
-    """
-    Авторизуется на https://{API_DOMAIN}/login и возвращает Response страницы student_live/index.
-    Response дополнительно содержит attribute parsed_homeworks — list of (href, spans_list, deadline_iso_or_None).
-    """
     domain = os.getenv("API_DOMAIN")
     if not domain:
         raise RuntimeError("API_DOMAIN is not set")
@@ -48,33 +44,29 @@ def get_homeworks(s: requests.Session, lesson_id):
 
     logger.info("GET %s", login_url)
     login_page = s.get(login_url, headers=headers, timeout=15)
-    logger.info("login page status: %s", login_page.status_code)
-
     soup = BeautifulSoup(login_page.text, "html.parser")
+
+    # ищем форму входа
     login_form = None
-    # prefer form containing password input
     for f in soup.find_all("form"):
         if f.find("input", {"type": "password"}):
             login_form = f
             break
     if not login_form:
-        # fallback to first form
         forms = soup.find_all("form")
         if forms:
             login_form = forms[0]
 
     payload = {}
     if login_form:
-        # collect all inputs
         for inp in login_form.find_all("input"):
             name = inp.get("name")
             if not name:
                 continue
-            # default value or empty string
             payload[name] = inp.get("value", "")
 
-        # detect email/password field names heuristically
         keys = list(payload.keys())
+
         def pick(keys, candidates):
             for k in keys:
                 lk = k.lower()
@@ -95,34 +87,25 @@ def get_homeworks(s: requests.Session, lesson_id):
         payload[email_field] = email or ""
         payload[password_field] = pwd or ""
 
-        # action
         action = login_form.get("action") or "/login"
         action = urljoin(login_url, action)
         method = (login_form.get("method") or "post").lower()
     else:
-        # no form found: try meta csrf or simple POST
         csrf = _find_csrf(soup)
         payload = {"email": email or "", "password": pwd or ""}
         action = f"https://{domain}/login"
         method = "post"
         if csrf:
-            # some apps expect token header
             headers["X-CSRF-TOKEN"] = csrf
 
-    logger.info("Submitting login to %s (method=%s). Email field used: %s", action, method, 'email')
-    try:
-        if method == "post":
-            login_resp = s.post(action, data=payload, headers={**headers, "Referer": login_url}, timeout=15, allow_redirects=True)
-        else:
-            login_resp = s.get(action, params=payload, headers={**headers, "Referer": login_url}, timeout=15, allow_redirects=True)
-    except Exception as e:
-        logger.exception("Exception while submitting login: %s", e)
-        raise
+    logger.info("Submitting login to %s (method=%s)", action, method)
+    if method == "post":
+        login_resp = s.post(action, data=payload, headers={**headers, "Referer": login_url}, timeout=15)
+    else:
+        login_resp = s.get(action, params=payload, headers={**headers, "Referer": login_url}, timeout=15)
 
     logger.info("Login final url: %s status: %s", getattr(login_resp, "url", None), getattr(login_resp, "status_code", None))
-    logger.debug("Cookies after login: %s", list(s.cookies.keys()))
 
-    # теперь проверочный запрос на student_live/index
     student_live_url = f"https://{domain}/student_live/index"
     params = {
         "email": "",
@@ -136,93 +119,58 @@ def get_homeworks(s: requests.Session, lesson_id):
         "module_id": module_id,
         "lesson_id": lesson_id,
     }
-    logger.info("GET %s with params lesson_id=%s", student_live_url, lesson_id)
-    resp = s.get(student_live_url, params=params, headers=headers, timeout=15)
-    logger.info("student_live returned %s %s", resp.status_code, resp.url)
 
-    # проверяем наличие маркера выхода (на странице админки есть кнопка Выйти -> https://admin.100points.ru/logout)
-    auth_ok = ("Выйти" in resp.text) or ("/logout" in resp.text) or ("student_live/index" in resp.url)
-    logger.info("Auth check: %s", auth_ok)
-    if not auth_ok:
-        # лог для диагностики — первые 800 символов
-        logger.warning("Не найден маркер успешной авторизации на student_live/index. Вот начало страницы:")
-        logger.warning(resp.text[:800])
-        # Не бросаем ошибку автоматически — иногда сайт возвращает админку без текстового 'Выйти'.
-        # Если хочешь, можно сделать raise здесь.
-
-    # парсинг ссылок на домашки из <tbody id="student_lives_body">
-    target_names = {
-    "Дмитрий Постнов",
-    "Никита Морозов",
-    "Дима Бесогонов",
-    "Полина Сон",
-    "Егор Парбузин",
-    "Даниил Лучко",
-    "Тимур Махмудов",
-    "Денис Ганагин",
-    "Иван Романов",
-    "Дмитрий Нормов",
-    "Иван Шиганов",
-    "Анастасия Жихарева",
-    "Арина Конвисар",
-    "Виктория Ноубрейн",
-    "Софья Шишкина",
-    "Тимур Юлдашев",
-    "Ученик",
-    "Алина Колоскова",
-    "Полинка Каширская",
-    "Алексей Липский",
-    "Гаак Роман Витальевич",
-    "Зорченко Данила Сергеевич",
-    "Vlada Kalinskaya",
-    "Софа Мартынова",
-    "Степан Чугунов",
-    "Горб Вероника Александровна",
-    "Шуйская Ирина Вячеславовна",
-    "Egor Averchenkov",
-    "Айсари Светлова",
-    "Nikita Ageev",
-    "Алла Марущак",
-    "Бектагиров Даниял Тагирович",
-    "ヴォイシモイ ビラクトット",
-    "Валерия Туровская"
-    }
     parsed = []
-    try:
-        s2 = BeautifulSoup(resp.text, "html.parser")
+
+    # -----------------------------
+    # 🔹 вот тут фильтрация по именам
+    # -----------------------------
+    target_names = [
+
+
+        "Дмитрий Постнов", "Никита Морозов", "Дима Бесогонов", "Полина Сон", "Егор Парбузин",
+        "Даниил Лучко", "Тимур Махмудов", "Денис Ганагин", "Иван Романов", "Дмитрий Нормов",
+        "Иван Шиганов", "Анастасия Жихарева", "Арина Конвисар", "Виктория Ноубрейн",
+        "Софья Шишкина", "Тимур Юлдашев", "Ученик", "Алина Колоскова", "Полинка Каширская",
+        "Алексей Липский", "Гаак Роман Витальевич", "Зорченко Данила Сергеевич",
+        "Vlada Kalinskaya", "Софа Мартынова", "Степан Чугунов", "Горб Вероника Александровна",
+        "Шуйская Ирина Вячеславовна", "Egor Averchenkov", "Айсари Светлова", "Nikita Ageev",
+        "Алла Марущак", "Бектагиров Даниял Тагирович", "ヴォイシモイ ビラクトット", "Валерия Туровская"
+    ]
+
+    for name in target_names:
+        params["full_name"] = name
+        logger.info("Fetching student_live for %s", name)
+        resp_one = s.get(student_live_url, params=params, headers=headers, timeout=15)
+        s2 = BeautifulSoup(resp_one.text, "html.parser")
         tbody = s2.find("tbody", id="student_lives_body")
-        if tbody:
-            for tr in tbody.find_all("tr"):
-                name_cell = tr.find_all("td")[2] if len(tr.find_all("td")) > 2 else None
-                if not name_cell:
+        if not tbody:
+            continue
+
+        for tr in tbody.find_all("tr"):
+            tds = tr.find_all("td")
+            if len(tds) < 3:
+                continue
+            student_name = tds[2].get_text(strip=True)
+            if student_name != name:
+                continue
+
+            for a in tr.find_all("a", href=True):
+                href = a["href"]
+                if "student_live/tasks" not in href:
                     continue
-                student_name = name_cell.get_text(strip=True)
-                if student_name not in target_names:
-                    continue  # пропускаем, если ученика нет в списке
-        
-                # ищем все ссылки на домашки внутри этой строки
-                for a in tr.find_all("a", href=True):
-                    href = a["href"]
-                    if "student_live/tasks" not in href:
-                        continue
-                    spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
-        
-                    # ищем дедлайн
-                    b = tr.find("b", attrs={"data-datetime": True})
-                    dt = b.get("data-datetime") if b else None
+                spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
+                b = tr.find("b", attrs={"data-datetime": True})
+                dt = b.get("data-datetime") if b else None
+                parsed.append((href, spans, dt))
 
-                    parsed.append((href, spans, dt))
+        time.sleep(0.3)  # пауза между запросами, чтобы не заддосить
 
-        
-    except Exception as e:
-        logger.exception("Ошибка парсинга student_live page: %s", e)
-
+    # -----------------------------
     logger.info("Parsed %d homework links", len(parsed))
-    # добавляем атрибут parsed_homeworks в объект Response для обратной совместимости
     try:
-        setattr(resp, "parsed_homeworks", parsed)
+        setattr(resp_one, "parsed_homeworks", parsed)
     except Exception:
         logger.exception("Не удалось присвоить parsed_homeworks к Response объекту")
-    print(parsed)  
-    print(resp)
-    return resp
+
+    return resp_one
