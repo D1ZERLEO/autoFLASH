@@ -1,34 +1,21 @@
-
-import os
-import sys
-import time
-import logging
-from urllib.parse import urljoin
-import requests
-from bs4 import BeautifulSoup
-
-logger = logging.getLogger("get_api_homeworks")
-if not logger.handlers:
-    h = logging.StreamHandler(stream=sys.stderr)
-    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
-    logger.addHandler(h)
-logger.setLevel(logging.INFO)
-
-
-def _find_csrf(soup):
-    for name in ("_token", "csrf_token", "csrf-token", "csrf"):
-        inp = soup.find("input", {"name": name})
-        if inp and inp.get("value"):
-            return inp["value"]
-    for name in ("csrf-token", "_token", "csrf"):
-        m = soup.find("meta", {"name": name})
-        if m and m.get("content"):
-            return m["content"]
-    return None
-
-
 def get_homeworks(s: requests.Session, lesson_id):
+    import os
+    import sys
+    import logging
+    from urllib.parse import urljoin
+    import requests
+    from bs4 import BeautifulSoup
+
+    # логгер в stderr
+    logger = logging.getLogger("get_api_homeworks")
+    if not logger.handlers:
+        h = logging.StreamHandler(stream=sys.stderr)
+        h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
+        logger.addHandler(h)
+    logger.setLevel(logging.INFO)
+
     print('get_homeworks is working')
+
     domain = os.getenv("API_DOMAIN")
     if not domain:
         raise RuntimeError("API_DOMAIN is not set")
@@ -42,11 +29,10 @@ def get_homeworks(s: requests.Session, lesson_id):
     login_url = f"https://{domain}/login"
     headers = {"User-Agent": "Mozilla/5.0"}
 
-    logger.info("GET %s", login_url)
+    # --- Авторизация ---
     login_page = s.get(login_url, headers=headers, timeout=15)
     soup = BeautifulSoup(login_page.text, "html.parser")
 
-    # ищем форму входа
     login_form = None
     for f in soup.find_all("form"):
         if f.find("input", {"type": "password"}):
@@ -76,13 +62,7 @@ def get_homeworks(s: requests.Session, lesson_id):
             return None
 
         email_field = pick(keys, ["email", "e-mail", "login", "user", "username"]) or "email"
-        password_field = pick(keys, ["password", "pass"]) or None
-        if not password_field:
-            pwd_input = login_form.find("input", {"type": "password"})
-            if pwd_input and pwd_input.get("name"):
-                password_field = pwd_input.get("name")
-        if not password_field:
-            password_field = "password"
+        password_field = pick(keys, ["password", "pass"]) or "password"
 
         payload[email_field] = email or ""
         payload[password_field] = pwd or ""
@@ -91,21 +71,20 @@ def get_homeworks(s: requests.Session, lesson_id):
         action = urljoin(login_url, action)
         method = (login_form.get("method") or "post").lower()
     else:
-        csrf = _find_csrf(soup)
-        payload = {"email": email or "", "password": pwd or ""}
         action = f"https://{domain}/login"
         method = "post"
-        if csrf:
-            headers["X-CSRF-TOKEN"] = csrf
+        payload = {"email": email or "", "password": pwd or ""}
 
-    logger.info("Submitting login to %s (method=%s)", action, method)
+    logger.info("Submitting login to %s", action)
     if method == "post":
-        login_resp = s.post(action, data=payload, headers={**headers, "Referer": login_url}, timeout=15)
+        login_resp = s.post(action, data=payload, headers={**headers, "Referer": login_url}, timeout=15, allow_redirects=True)
     else:
-        login_resp = s.get(action, params=payload, headers={**headers, "Referer": login_url}, timeout=15)
+        login_resp = s.get(action, params=payload, headers={**headers, "Referer": login_url}, timeout=15, allow_redirects=True)
 
     logger.info("Login final url: %s status: %s", getattr(login_resp, "url", None), getattr(login_resp, "status_code", None))
+    logger.debug("Cookies after login: %s", list(s.cookies.keys()))
 
+    # --- Основной запрос ---
     student_live_url = f"https://{domain}/student_live/index"
     params = {
         "email": "",
@@ -120,46 +99,42 @@ def get_homeworks(s: requests.Session, lesson_id):
         "lesson_id": lesson_id,
     }
 
-    parsed = []
-    # -----------------------------
-    # 🔹 вот тут фильтрация по именам
-    # -----------------------------
-    target_names = [
+    logger.info("GET %s with params lesson_id=%s", student_live_url, lesson_id)
+    resp = s.get(student_live_url, params=params, headers=headers, timeout=15)
+    logger.info("student_live returned %s %s", resp.status_code, resp.url)
 
+    auth_ok = ("Выйти" in resp.text) or ("/logout" in resp.text) or ("student_live/index" in resp.url)
+    logger.info("Auth check: %s", auth_ok)
+    if not auth_ok:
+        logger.warning("Не найден маркер успешной авторизации на student_live/index.")
+        logger.warning(resp.text[:800])
 
-        "Дмитрий Постнов", "Никита Морозов", "Дима Бесогонов", "Полина Сон", "Егор Парбузин",
-        "Даниил Лучко", "Тимур Махмудов", "Денис Ганагин", "Иван Романов", "Дмитрий Нормов",
-        "Иван Шиганов", "Анастасия Жихарева", "арина конвисар", "Виктория Ахунова",
-        "Софья Шишкина", "Тимур Юлдашев", "Кирилл Гнусов", "Алина Колоскова", "Полинка Каширская",
-        "Алексей Липский", "Гаак Роман Витальевич", "Зорченко Данила Сергеевич",
-        "Vlada Kalinskaya", "Софа Мартынова", "Степан Чугунов", "Горб Вероника Александровна",
-        "Шуйская Ирина Вячеславовна", "Egor Averchenkov", "Айсёна Светлова", "Nikita Ageev",
-        "Алла Марущак", "Бектагиров Даниял Тагирович", "ヴォイシモイ ビラクトット", "Валерия Туровская","Вика Фрицлер"
-    ]
+    # --- Парсинг со всех страниц ---
     parsed = []
     try:
-        max_pages = 10  # если больше 10 страниц — увеличь
+        max_pages = 10  # если страниц больше — увеличь
         for page_num in range(1, max_pages + 1):
             params["page"] = page_num
-            logger.info("Fetching page %d of student_live", page_num)
+            logger.info("Fetching student_live page %d", page_num)
             resp_page = s.get(student_live_url, params=params, headers=headers, timeout=15)
             s2 = BeautifulSoup(resp_page.text, "html.parser")
+
             tbody = s2.find("tbody", id="student_lives_body")
             if not tbody:
-                logger.info("No table body found on page %d, stopping.", page_num)
+                logger.info("No table body found on page %d, stopping", page_num)
                 break
-    
+
             rows = tbody.find_all("tr")
             if not rows:
-                logger.info("No rows found on page %d, stopping.", page_num)
+                logger.info("No rows found on page %d, stopping", page_num)
                 break
-    
+
             for tr in rows:
                 tds = tr.find_all("td")
                 if len(tds) < 3:
                     continue
                 student_name = tds[2].get_text(strip=True)
-    
+
                 for a in tr.find_all("a", href=True):
                     href = a["href"]
                     if "student_live/tasks" not in href:
@@ -168,18 +143,16 @@ def get_homeworks(s: requests.Session, lesson_id):
                     b = tr.find("b", attrs={"data-datetime": True})
                     dt = b.get("data-datetime") if b else None
                     parsed.append((student_name, href, spans, dt))
+
         logger.info("Parsed %d homework links total", len(parsed))
-    
+
     except Exception as e:
         logger.exception("Ошибка парсинга student_live pages: %s", e)
-    
-    logger.info("Parsed %d homework links total", len(parsed))
 
-    # добавляем список всех найденных домашних в объект Response
+    # --- Добавляем результат к Response ---
     try:
         setattr(resp, "parsed_homeworks", parsed)
     except Exception:
         logger.exception("Не удалось присвоить parsed_homeworks к Response объекту")
 
-    # Возвращаем последний ответ (resp) с добавленным parsed_homeworks
     return resp
