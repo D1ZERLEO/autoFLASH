@@ -213,7 +213,7 @@ def get_homeworks(s: requests.Session, lesson_id):
 
                     parsed.append((href, spans, dt))
 
-             
+    print(parsed)      
     except Exception as e:
         logger.exception("Ошибка парсинга student_live page: %s", e)
 
