@@ -4,7 +4,7 @@ def write_lesson_homework(s, lesson_id, lesson_title, deadline):
     from functools import reduce
     from bs4 import BeautifulSoup
     from google_tables.to_table import write
- 
+    from school_website.get_api_homeworks import get_homeworks
 
     print(f"--- Сбор данных по уроку {lesson_title} ---")
     TARGET_NAMES = [
