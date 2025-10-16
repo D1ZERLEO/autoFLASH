@@ -1,90 +1,60 @@
+from bs4 import BeautifulSoup
+from functools import reduce
+
+from google_tables.to_table import write
+from school_website.get_api_homeworks import get_homeworks
+
+import os
+
 def write_lesson_homework(s, lesson_id, lesson_title, deadline):
-    import re
-    import os
-    from functools import reduce
-    from bs4 import BeautifulSoup
-    from google_tables.to_table import write
-    from school_website.get_api_homeworks import get_homeworks
-    import requests
-    print(f"--- Сбор данных по уроку {lesson_title} ---")
-    TARGET_NAMES = [
-
-
-        "Дмитрий Постнов", "Никита Морозов", "Дима Бесогонов", "Полина Сон", "Егор Парбузин",
-        "Даниил Лучко", "Тимур Махмудов", "Денис Ганагин", "Иван Романов", "Дмитрий Нормов",
-        "Иван Шиганов", "Анастасия Жихарева", "арина конвисар", "Виктория Ахунова",
-        "Софья Шишкина", "Тимур Юлдашев", "Кирилл Гнусов", "Алина Колоскова", "Полинка Каширская",
-        "Алексей Липский", "Гаак Роман Витальевич", "Зорченко Данила Сергеевич",
-        "Vlada Kalinskaya", "Софа Мартынова", "Степан Чугунов", "Горб Вероника Александровна",
-        "Шуйская Ирина Вячеславовна", "Egor Averchenkov", "Айсёна Светлова", "Nikita Ageev",
-        "Алла Марущак", "Бектагиров Даниял Тагирович", "ヴォイシモイ ビラクトット", "Валерия Туровская","Вика Фрицлер"
-    ]
-    # Получаем страницу и все домашки
     page = get_homeworks(s, lesson_id)
-    all_data = getattr(page, "parsed_homeworks", [])
-    print(f"Всего найдено домашних по всем страницам: {len(all_data)}")
 
-    # Фильтруем — оставляем только моих учеников
-    filtered = [p for p in all_data if p[0] in TARGET_NAMES]
-    print(f"Из них моих учеников: {len(filtered)}")
+    soup = BeautifulSoup(page.text, "html.parser")
+    print(f'Made all of the requests to the {os.getenv("API_DOMAIN")}!')
 
-    # Если по какой-то причине parsed_homeworks пуст — fallback на HTML
-    if not filtered:
-        print("⚠️ Не найдено ни одного совпадения по именам — пробуем парсить HTML напрямую")
-        soup = BeautifulSoup(page.text, "html.parser")
-        tbody = soup.find("tbody", id="student_lives_body")
-        if tbody:
-            for tr in tbody.find_all("tr"):
-                tds = tr.find_all("td")
-                if len(tds) < 3:
-                    continue
-                student_name = tds[2].get_text(strip=True)
-                if student_name in TARGET_NAMES:
-                    spans = [sp.get_text(strip=True) for sp in tr.find_all("span")]
-                    filtered.append((student_name, None, spans, None))
-        print(f"После HTML fallback найдено: {len(filtered)}")
-
-    print("Формируем таблицу...")
-
-    # Преобразуем данные: извлекаем только числа (например 6 из "6/7" или "86%")
+    print('Collect information about students...')
     students = []
-    for student_name, href, spans, dt in filtered:
-        about = [student_name]
-        if spans:
-            # Берём все span и вычленяем только числа
-            for sp in spans:
-                m = re.search(r"\d+", sp)
-                about.append(m.group(0) if m else "0")
-        else:
-            about.append("0")
-        students.append(about)
 
-    # Добавляем отсутствующих (у кого нет данных)
-    found_names = {s[0] for s in students}
-    for name in TARGET_NAMES:
-        if name not in found_names:
-            students.append([name, "нет данных"])
+    for row in soup.findAll('tr', class_='odd'):
+        items = row.findAll('td')
+        if len(items) < 7:
+            continue
 
-    # Сортируем для стабильности
-    students.sort(key=lambda x: x[0])
+        name = items[2].get_text(strip=True)
+        about_guy = [name]
 
-    print(f"Готово. В таблице будет {len(students)} строк.")
+        # идём по всем домашкам, начиная с 6-го индекса
+        for hmw in items[6:]:
+            # проверяем, есть ли ссылка с результатами
+            link = hmw.find("a", href=True)
+            if link:
+                spans = [sp.get_text(strip=True) for sp in link.find_all("span")]
+                if spans:
+                    # обычно первый span = "6/6", второй = "100%"
+                    about_guy.append(spans[0])  
+                else:
+                    about_guy.append("сдано (но без деталей)")
+            else:
+                # если ссылка нет, значит статусом управляет <span>
+                span = hmw.find("span")
+                if span:
+                    about_guy.append(span.get_text(strip=True))
+                else:
+                    about_guy.append("нет данных")
 
-    # Подготавливаем данные для записи
-    if students:
-        iterator = iter(reduce(lambda x, y: x + y, [k[1:] for k in students]))
-        totals_len = len(students[0]) - 1
-    else:
-        iterator = iter([])
-        totals_len = 0
+        students.append(about_guy)
 
-    # Записываем в Google таблицу
+    # сортировка студентов: сначала A-Z английские, потом остальные
+    students.sort(key=lambda x: (ord('A') <= ord(x[0][0].upper()) <= ord('Z'), x[0]))
+
+    print('Make changes at table...')
+    from functools import reduce
+    iterator = iter(reduce(lambda x, y: x + y, [k[1:] for k in students]))
+    from google_tables.to_table import write
     write(
         title=lesson_title,
         deadline=deadline,
         q_students=len(students),
         grades=iterator,
-        totals=[''] * totals_len
+        totals=[''] * (len(students[0]) - 1)
     )
-
-    print(f"✅ Таблица успешно обновлена: {lesson_title} ({len(students)} учеников)")
