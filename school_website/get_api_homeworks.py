@@ -1,11 +1,11 @@
 import os
 import sys
 import logging
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 import requests
 from bs4 import BeautifulSoup
 
-# логгер в stderr — чтобы вывод всегда был виден
+# логгер
 logger = logging.getLogger("get_api_homeworks")
 if not logger.handlers:
     h = logging.StreamHandler(stream=sys.stderr)
@@ -15,7 +15,7 @@ logger.setLevel(logging.INFO)
 
 
 def _find_csrf(soup):
-    """Ищем csrf-токен в форме или метатегах."""
+    """Ищем csrf-токен."""
     for name in ("_token", "csrf_token", "csrf-token", "csrf"):
         inp = soup.find("input", {"name": name})
         if inp and inp.get("value"):
@@ -29,10 +29,7 @@ def _find_csrf(soup):
 
 def get_homeworks(s: requests.Session, lesson_id):
     print('get_homeworks is working')
-    """
-    Авторизуется на https://{API_DOMAIN}/login и возвращает Response страницы student_live/index.
-    Response дополнительно содержит attribute parsed_homeworks — list of (href, spans_list, deadline_iso_or_None).
-    """
+
     domain = os.getenv("API_DOMAIN")
     if not domain:
         raise RuntimeError("API_DOMAIN is not set")
@@ -46,80 +43,30 @@ def get_homeworks(s: requests.Session, lesson_id):
     login_url = f"https://{domain}/login"
     headers = {"User-Agent": "Mozilla/5.0"}
 
+    # === 1. Авторизация ===
     logger.info("GET %s", login_url)
     login_page = s.get(login_url, headers=headers, timeout=15)
-    logger.info("login page status: %s", login_page.status_code)
-
     soup = BeautifulSoup(login_page.text, "html.parser")
-    login_form = None
-    for f in soup.find_all("form"):
-        if f.find("input", {"type": "password"}):
-            login_form = f
-            break
-    if not login_form:
-        forms = soup.find_all("form")
-        if forms:
-            login_form = forms[0]
 
     payload = {}
-    if login_form:
-        for inp in login_form.find_all("input"):
-            name = inp.get("name")
-            if not name:
-                continue
-            payload[name] = inp.get("value", "")
+    form = soup.find("form")
+    if form:
+        for inp in form.find_all("input"):
+            if inp.get("name"):
+                payload[inp["name"]] = inp.get("value", "")
 
-        def pick(keys, candidates):
-            for k in keys:
-                lk = k.lower()
-                for c in candidates:
-                    if c in lk:
-                        return k
-            return None
+    payload["email"] = email
+    payload["password"] = pwd
+    csrf = _find_csrf(soup)
+    if csrf:
+        headers["X-CSRF-TOKEN"] = csrf
 
-        keys = list(payload.keys())
-        email_field = pick(keys, ["email", "e-mail", "login", "user", "username"]) or "email"
-        password_field = pick(keys, ["password", "pass"]) or None
-        if not password_field:
-            pwd_input = login_form.find("input", {"type": "password"})
-            if pwd_input and pwd_input.get("name"):
-                password_field = pwd_input.get("name")
-        if not password_field:
-            password_field = "password"
+    logger.info("Авторизация на %s", login_url)
+    s.post(login_url, data=payload, headers=headers, timeout=15)
 
-        payload[email_field] = email or ""
-        payload[password_field] = pwd or ""
-
-        action = login_form.get("action") or "/login"
-        action = urljoin(login_url, action)
-        method = (login_form.get("method") or "post").lower()
-    else:
-        csrf = _find_csrf(soup)
-        payload = {"email": email or "", "password": pwd or ""}
-        action = f"https://{domain}/login"
-        method = "post"
-        if csrf:
-            headers["X-CSRF-TOKEN"] = csrf
-
-    logger.info("Submitting login to %s (method=%s). Email field used: %s", action, method, 'email')
-    try:
-        if method == "post":
-            login_resp = s.post(action, data=payload, headers={**headers, "Referer": login_url},
-                                timeout=15, allow_redirects=True)
-        else:
-            login_resp = s.get(action, params=payload, headers={**headers, "Referer": login_url},
-                               timeout=15, allow_redirects=True)
-    except Exception as e:
-        logger.exception("Exception while submitting login: %s", e)
-        raise
-
-    logger.info("Login final url: %s status: %s", getattr(login_resp, "url", None),
-                getattr(login_resp, "status_code", None))
-    logger.debug("Cookies after login: %s", list(s.cookies.keys()))
-
-    # Запрашиваем student_live/index
+    # === 2. Запрашиваем журнал ===
     student_live_url = f"https://{domain}/student_live/index"
-    params = {
+    base_params = {
         "email": "",
         "full_name": "",
         "hidden_last_name": "",
@@ -131,69 +78,68 @@ def get_homeworks(s: requests.Session, lesson_id):
         "module_id": module_id,
         "lesson_id": lesson_id,
     }
-    logger.info("GET %s with params lesson_id=%s", student_live_url, lesson_id)
-    resp = s.get(student_live_url, params=params, headers=headers, timeout=15)
-    logger.info("student_live returned %s %s", resp.status_code, resp.url)
 
-    auth_ok = ("Выйти" in resp.text) or ("/logout" in resp.text) or ("student_live/index" in resp.url)
-    logger.info("Auth check: %s", auth_ok)
-    if not auth_ok:
-        logger.warning("Не найден маркер успешной авторизации на student_live/index. Вот начало страницы:")
-        logger.warning(resp.text[:800])
+    logger.info("GET %s", student_live_url)
+    resp = s.get(student_live_url, params=base_params, headers=headers, timeout=15)
+    all_rows_html = [resp.text]  # первая страница
 
-    # === ПАГИНАЦИЯ: парсим все страницы ===
+    # === 3. Переходим по страницам ===
+    page_num = 1
+    while True:
+        soup = BeautifulSoup(all_rows_html[-1], "html.parser")
+        pagination = soup.find("ul", class_="pagination")
+        next_link = None
+
+        if pagination:
+            for a in pagination.find_all("a", href=True):
+                if "page=" in a["href"] and a.get_text(strip=True) in [str(page_num + 1), "Следующая", ">"]:
+                    next_link = a["href"]
+                    break
+
+        if not next_link:
+            logger.info("Нет следующей страницы (остановка на %d)", page_num)
+            break
+
+        next_url = urljoin(student_live_url, next_link)
+        logger.info(f"Загружаем страницу {page_num + 1}: {next_url}")
+
+        # Если next_link не содержит lesson_id — добавим вручную
+        if "lesson_id" not in next_link:
+            params = base_params.copy()
+            params["page"] = page_num + 1
+            next_url = f"{student_live_url}?{urlencode(params)}"
+
+        next_resp = s.get(next_url, headers=headers, timeout=15)
+        if next_resp.status_code != 200:
+            logger.warning(f"Не удалось загрузить страницу {page_num + 1}: {next_resp.status_code}")
+            break
+
+        all_rows_html.append(next_resp.text)
+        page_num += 1
+
+    # === 4. Объединяем всех учеников со всех страниц ===
     parsed = []
-    try:
-        s2 = BeautifulSoup(resp.text, "html.parser")
-        page_num = 1
+    for i, html in enumerate(all_rows_html, start=1):
+        s2 = BeautifulSoup(html, "html.parser")
+        tbody = s2.find("tbody", id="student_lives_body")
+        if not tbody:
+            logger.warning(f"tbody не найден на странице {i}")
+            continue
 
-        while True:
-            logger.info(f"Парсим страницу {page_num}...")
-            tbody = s2.find("tbody", id="student_lives_body")
-            if not tbody:
-                logger.warning(f"Не найден tbody на странице {page_num}")
-                break
+        for a in tbody.find_all("a", href=True):
+            href = a["href"]
+            if "student_live/tasks" not in href:
+                continue
+            spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
 
-            for a in tbody.find_all("a", href=True):
-                href = a["href"]
-                if "student_live/tasks" not in href:
-                    continue
-                spans = [sp.get_text(strip=True) for sp in a.find_all("span")]
-                parent_td = a.find_parent("td")
-                dt = None
-                if not parent_td:
-                    tr = a.find_parent("tr")
-                    if tr:
-                        b = tr.find("b", attrs={"data-datetime": True})
-                        dt = b.get("data-datetime") if b and b.get("data-datetime") else None
-                else:
-                    b = parent_td.find("b", attrs={"data-datetime": True})
-                    dt = b.get("data-datetime") if b and b.get("data-datetime") else None
+            parent_td = a.find_parent("td")
+            dt = None
+            if parent_td:
+                b = parent_td.find("b", attrs={"data-datetime": True})
+                dt = b.get("data-datetime") if b and b.get("data-datetime") else None
+            parsed.append((href, spans, dt))
 
-                parsed.append((href, spans, dt))
-
-            # ищем ссылку на следующую страницу
-            pagination = s2.find("ul", class_="pagination")
-            next_link = None
-            if pagination:
-                for li in pagination.find_all("a", href=True):
-                    if "page=" in li["href"] and li.get_text(strip=True) in [str(page_num + 1), "Следующая", ">"]:
-                        next_link = li["href"]
-                        break
-
-            if not next_link:
-                break
-
-            next_url = urljoin(student_live_url, next_link)
-            page_num += 1
-            logger.info(f"Загружаем {next_url}")
-            next_resp = s.get(next_url, headers=headers, timeout=15)
-            s2 = BeautifulSoup(next_resp.text, "html.parser")
-
-    except Exception as e:
-        logger.exception("Ошибка парсинга student_live page: %s", e)
-
-    logger.info("Parsed %d homework links (включая все страницы)", len(parsed))
+    logger.info("Parsed %d homework links (со всех страниц)", len(parsed))
 
     try:
         setattr(resp, "parsed_homeworks", parsed)
