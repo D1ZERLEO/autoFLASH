@@ -4,7 +4,6 @@ from google_tables.to_table import write
 from school_website.get_api_homeworks import get_homeworks
 import os
 
-# === Список твоей группы ===
 GROUP = [
     "Дмитрий Постнов",
     "Никита Морозов",
@@ -43,50 +42,58 @@ GROUP = [
     "Фрицлер Виктория Владимировна"
 ]
 
+
 def write_lesson_homework(s, lesson_id, lesson_title, deadline):
     page = get_homeworks(s, lesson_id)
     soup = BeautifulSoup(page.text, "html.parser")
-    print(f'Made all of the requests to the {os.getenv("API_DOMAIN")}!')
-    print('Collect information about students...')
+
+    print(f"Made all of the requests to the {os.getenv('API_DOMAIN')}!")
+    print("Collect information about students...")
 
     students = []
+    matched = 0
+    total = 0
 
-    for row in soup.findAll('tr', class_='odd'):
-        items = row.findAll('td')
+    for row in soup.findAll("tr", class_="odd"):
+        items = row.findAll("td")
         if len(items) < 7:
             continue
 
         name = items[2].get_text(strip=True)
+        total += 1
 
-        # 🔹 Проверяем принадлежность ученика к группе
-        if name not in GROUP:
+        # Сравниваем без учёта регистра
+        if not any(name.lower() == g.lower() for g in GROUP):
+            print(f"❌ Пропущен: {name}")
             continue
+
+        print(f"✅ Найден в группе: {name}")
+        matched += 1
 
         about_guy = [name]
 
-        # 🔹 Идём по всем домашкам, начиная с 6-го индекса
+        # идём по всем домашкам начиная с 6-го столбца
         for hmw in items[6:]:
             link = hmw.find("a", href=True)
             if link:
                 spans = [sp.get_text(strip=True) for sp in link.find_all("span")]
                 if spans:
-                    mark = spans[0].split("/")[0]  # 🔹 Берём только число до "/"
+                    mark = spans[0].split("/")[0]  # только число до "/"
                     about_guy.append(mark)
                 else:
                     about_guy.append("сдано")
             else:
                 span = hmw.find("span")
-                if span:
-                    about_guy.append(span.get_text(strip=True))
-                else:
-                    about_guy.append("нет данных")
+                about_guy.append(span.get_text(strip=True) if span else "нет данных")
 
         students.append(about_guy)
 
-    # сортировка студентов (A-Z сначала латиница)
+    print(f"Всего строк на странице: {total}, совпало по группе: {matched}")
+
+    # сортировка студентов (A-Z — латиница вперёд)
     students.sort(key=lambda x: (ord('A') <= ord(x[0][0].upper()) <= ord('Z'), x[0]))
 
-    print('Make changes at table...')
+    print("Make changes at table...")
     iterator = iter(reduce(lambda x, y: x + y, [k[1:] for k in students]))
     write(
         title=lesson_title,
