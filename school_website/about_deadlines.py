@@ -30,7 +30,7 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
         login_page.text[:1000])
     return []
 
-csrf_token = token_input.get("value")
+    csrf_token = token_input.get("value")
 
     login_data = {"email": email, "password": password, "_token": csrf_token}
     login_response = session.post("https://admin.100points.ru/login", data=login_data)
