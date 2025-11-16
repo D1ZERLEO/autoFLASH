@@ -21,8 +21,16 @@ def get_deadlines() -> List[Tuple[str, Any, Any]]:
 
     # Логин
     login_page = session.get("https://admin.100points.ru/login")
+    login_page.raise_for_status()  # убедитесь, что ответ 200
+
     soup = BeautifulSoup(login_page.text, "html.parser")
-    csrf_token = soup.find("input", {"name": "_token"}).get("value")
+    token_input = soup.find("input", {"name": "_token"})
+    if token_input is None:
+        logger.error("CSRF-токен не найден на странице входа. HTML-ответ начинается с:\n%s", 
+        login_page.text[:1000])
+    return []
+
+csrf_token = token_input.get("value")
 
     login_data = {"email": email, "password": password, "_token": csrf_token}
     login_response = session.post("https://admin.100points.ru/login", data=login_data)
